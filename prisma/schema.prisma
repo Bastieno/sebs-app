@@ -27,6 +27,7 @@ model User {
   accessLogs        AccessLog[]
   approvedSubscriptions Subscription[] @relation("ApprovedBy")
   processedReceipts PaymentReceipt[] @relation("ProcessedBy")
+  notifications     Notification[]
 
   @@map("users")
 }
@@ -157,4 +158,16 @@ enum PaymentStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  message   String
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
 }

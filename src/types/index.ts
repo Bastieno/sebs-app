@@ -71,3 +71,14 @@ export interface FileUpload {
   filename: string;
   path: string;
 }
+
+import { Request } from 'express';
+
+export interface AuthenticatedRequest extends Request {
+  user: {
+    id: string;
+    email: string;
+    role: string;
+    name: string;
+  };
+}
