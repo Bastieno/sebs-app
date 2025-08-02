@@ -46,8 +46,10 @@ app.get('/health', (req: Request, res: Response) => {
   });
 });
 
-// API Routes (will be added as we build them)
-// app.use('/api/auth', require('./routes/auth'));
+// API Routes
+import authRoutes from './routes/auth';
+
+app.use('/api/auth', authRoutes);
 // app.use('/api/users', require('./routes/users'));
 // app.use('/api/subscriptions', require('./routes/subscriptions'));
 // app.use('/api/access', require('./routes/access'));
