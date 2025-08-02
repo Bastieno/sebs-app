@@ -523,3 +523,73 @@ export const getSubscriptionStatus = async (req: Request, res: Response): Promis
     } as ApiResponse);
   }
 };
+
+export const renewSubscription = async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!req.user) {
+      res.status(401).json({ success: false, message: 'Authentication required' } as ApiResponse);
+      return;
+    }
+
+    const { subscriptionId } = req.params;
+
+    const existingSubscription = await prisma.subscription.findFirst({
+      where: {
+        id: subscriptionId,
+        userId: req.user.id,
+        status: { in: ['ACTIVE', 'EXPIRED'] }
+      },
+      include: { plan: true }
+    });
+
+    if (!existingSubscription) {
+      res.status(404).json({ success: false, message: 'Eligible subscription for renewal not found' } as ApiResponse);
+      return;
+    }
+
+    // Create a new subscription based on the old one
+    const newStartDate = new Date();
+    const newEndDate = calculateEndDate(newStartDate, existingSubscription.plan.durationType);
+    const newGraceEndDate = calculateGraceEndDate(newEndDate, existingSubscription.plan.durationType);
+    const newQrToken = uuidv4();
+
+    const newSubscription = await prisma.subscription.create({
+      data: {
+        userId: req.user.id,
+        planId: existingSubscription.planId,
+        timeSlot: existingSubscription.timeSlot,
+        startDate: newStartDate,
+        endDate: newEndDate,
+        graceEndDate: newGraceEndDate,
+        qrToken: newQrToken,
+        status: 'PENDING'
+      },
+      include: { plan: true }
+    });
+
+    // Optionally, mark the old subscription as expired
+    if (existingSubscription.status === 'ACTIVE') {
+      await prisma.subscription.update({
+        where: { id: subscriptionId },
+        data: { status: 'EXPIRED' }
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Subscription renewal initiated successfully',
+      data: {
+        newSubscription,
+        nextStep: 'Please upload your payment receipt for the new subscription period.'
+      }
+    } as ApiResponse);
+
+  } catch (error) {
+    console.error('Renew subscription error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Internal server error',
+      error: 'Failed to renew subscription'
+    } as ApiResponse);
+  }
+};

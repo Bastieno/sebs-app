@@ -1,17 +1,32 @@
 import { Router } from 'express';
-import { getPendingApprovals, approveSubscription, rejectSubscription } from '../controllers/adminController';
-import { authenticate } from '@/middleware/auth';
-import { isAdmin, isSuperAdmin } from '@/middleware/roles';
+import { 
+  getPendingPayments, 
+  approvePayment, 
+  rejectPayment,
+  getAllUsers,
+  updateUserStatus,
+  getAllSubscriptions,
+  getAccessLogs,
+  getDashboardAnalytics
+} from '../controllers/adminController';
+import { requireAdmin } from '../middleware/auth';
 
 const router = Router();
 
-router.get('/approvals', authenticate, isAdmin, getPendingApprovals);
-router.patch('/subscriptions/:subscriptionId/approve', authenticate, isAdmin, approveSubscription);
-router.patch('/subscriptions/:subscriptionId/reject', authenticate, isAdmin, rejectSubscription);
+// Payment and Subscription Management
+router.get('/pending-payments', requireAdmin, getPendingPayments);
+router.put('/approve-payment/:paymentId', requireAdmin, approvePayment);
+router.put('/reject-payment/:paymentId', requireAdmin, rejectPayment);
 
-// Example of a super admin only route
-router.delete('/users/:userId', authenticate, isSuperAdmin, (req, res) => {
-  res.json({ message: `User ${req.params.userId} deleted by super admin` });
-});
+// User Management
+router.get('/users', requireAdmin, getAllUsers);
+router.put('/user-status/:userId', requireAdmin, updateUserStatus);
+
+// Data Viewing
+router.get('/subscriptions', requireAdmin, getAllSubscriptions);
+router.get('/access-logs', requireAdmin, getAccessLogs);
+
+// Analytics
+router.get('/analytics', requireAdmin, getDashboardAnalytics);
 
 export default router;

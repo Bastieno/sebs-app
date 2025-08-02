@@ -4,7 +4,8 @@ import {
   uploadPaymentReceipt, 
   getUserSubscriptions, 
   getSubscriptionQRCode, 
-  getSubscriptionStatus 
+  getSubscriptionStatus,
+  renewSubscription
 } from '../controllers/subscriptionController';
 import { requireAuth } from '../middleware/auth';
 import { uploadReceipt, handleUploadError } from '../middleware/upload';
@@ -58,5 +59,13 @@ router.get('/:subscriptionId/qr-code', requireAuth, getSubscriptionQRCode);
  * @headers Authorization: Bearer <token>
  */
 router.get('/:subscriptionId/status', requireAuth, getSubscriptionStatus);
+
+/**
+ * @route   PUT /api/subscriptions/:subscriptionId/renew
+ * @desc    Renew an existing subscription
+ * @access  Private
+ * @headers Authorization: Bearer <token>
+ */
+router.put('/:subscriptionId/renew', requireAuth, renewSubscription);
 
 export default router;
