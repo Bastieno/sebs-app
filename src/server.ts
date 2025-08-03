@@ -7,6 +7,8 @@ import dotenv from 'dotenv';
 
 import { connectDatabase } from './config/database';
 import { CustomError } from './types';
+import swaggerUi from 'swagger-ui-express';
+import swaggerSpec from './config/swagger';
 
 // Load environment variables
 dotenv.config();
@@ -53,6 +55,7 @@ import adminRoutes from './routes/admin';
 import accessRoutes from './routes/access';
 import notificationRoutes from './routes/notification';
 import userRoutes from './routes/user';
+import superAdminRoutes from './routes/superAdmin';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/qr-code', qrCodeRoutes);
@@ -60,6 +63,10 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/access', accessRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/super-admin', superAdminRoutes);
+
+// API Documentation Route
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 // app.use('/api/users', require('./routes/users'));
 // app.use('/api/subscriptions', require('./routes/subscriptions'));
 // app.use('/api/access', require('./routes/access'));
@@ -70,7 +77,7 @@ app.get('/', (req: Request, res: Response) => {
   res.json({
     message: 'Welcome to Seb\'s Hub API',
     version: '1.0.0',
-    documentation: '/api/docs',
+    documentation: '/api-docs',
     health: '/health'
   });
 });
@@ -110,18 +117,20 @@ app.use((err: CustomError, req: Request, res: Response, next: NextFunction) => {
 });
 
 // Start server
-app.listen(PORT, async () => {
-  console.log(`🚀 Seb's Hub Backend running on port ${PORT}`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV}`);
-  console.log(`🔗 Health check: http://localhost:${PORT}/health`);
-  console.log(`📚 API docs: http://localhost:${PORT}/api/docs`);
-  
-  // Initialize database connection
-  if (process.env.DATABASE_URL) {
-    await connectDatabase();
-  } else {
-    console.log('⚠️  DATABASE_URL not configured - skipping database connection');
-  }
-});
+if (require.main === module) {
+  app.listen(PORT, async () => {
+    console.log(`🚀 Seb's Hub Backend running on port ${PORT}`);
+    console.log(`📊 Environment: ${process.env.NODE_ENV}`);
+    console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+    console.log(`📚 API docs: http://localhost:${PORT}/api-docs`);
+    
+    // Initialize database connection
+    if (process.env.DATABASE_URL) {
+      await connectDatabase();
+    } else {
+      console.log('⚠️  DATABASE_URL not configured - skipping database connection');
+    }
+  });
+}
 
 export default app;

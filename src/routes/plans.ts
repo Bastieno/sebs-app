@@ -4,23 +4,53 @@ import { getAllPlans, getPlanById, getPlanPricing } from '../controllers/plansCo
 const router = Router();
 
 /**
- * @route   GET /api/plans
- * @desc    Get all active plans
- * @access  Public
+ * @swagger
+ * tags:
+ *   name: Plans
+ *   description: Plan management endpoints
+ */
+
+/**
+ * @swagger
+ * /api/plans:
+ *   get:
+ *     summary: Get all active plans
+ *     tags: [Plans]
+ *     responses:
+ *       '200':
+ *         description: A list of active plans
  */
 router.get('/', getAllPlans);
 
 /**
- * @route   GET /api/plans/pricing
- * @desc    Get structured pricing information
- * @access  Public
+ * @swagger
+ * /api/plans/pricing:
+ *   get:
+ *     summary: Get structured pricing information
+ *     tags: [Plans]
+ *     responses:
+ *       '200':
+ *         description: Structured pricing information
  */
 router.get('/pricing', getPlanPricing);
 
 /**
- * @route   GET /api/plans/:id
- * @desc    Get plan by ID with subscription count
- * @access  Public
+ * @swagger
+ * /api/plans/{id}:
+ *   get:
+ *     summary: Get plan by ID with subscription count
+ *     tags: [Plans]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: Plan details
+ *       '404':
+ *         description: Plan not found
  */
 router.get('/:id', getPlanById);
 
