@@ -76,4 +76,10 @@ export const templates = {
     html: `<p>Hi ${userName},</p><p>This is a reminder that your <strong>${planName}</strong> subscription will expire on ${expiryDate}. Please renew to continue enjoying our services.</p>`,
     sms: `Hi ${userName}, your ${planName} subscription expires on ${expiryDate}. Renew soon!`
   }),
+
+  gracePeriodAlert: (userName: string, planName: string, graceEndDate: string) => ({
+    subject: 'Your Subscription is in a Grace Period',
+    html: `<p>Hi ${userName},</p><p>Your <strong>${planName}</strong> subscription has expired. You are currently in a 2-day grace period, which ends on ${graceEndDate}. Please renew your subscription immediately to avoid service interruption.</p>`,
+    sms: `Hi ${userName}, your ${planName} subscription has expired. Your grace period ends on ${graceEndDate}. Please renew now.`
+  }),
 };

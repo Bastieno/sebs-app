@@ -138,6 +138,7 @@ enum TimeSlot {
 enum SubscriptionStatus {
   PENDING
   ACTIVE
+  IN_GRACE_PERIOD
   EXPIRED
   SUSPENDED
 }

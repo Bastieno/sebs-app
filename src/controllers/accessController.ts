@@ -126,3 +126,31 @@ export const getAccessLogs = async (req: Request, res: Response) => {
     res.status(500).json({ success: false, message: 'Error fetching access logs' });
   }
 };
+
+export const getCurrentCapacity = async (req: Request, res: Response) => {
+  try {
+    const plans = await prisma.plan.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        name: true,
+        maxCapacity: true,
+        currentCapacity: true,
+      },
+    });
+
+    const totalCapacity = plans.reduce((acc, plan) => acc + (plan.maxCapacity || 0), 0);
+    const totalCurrentOccupancy = plans.reduce((acc, plan) => acc + plan.currentCapacity, 0);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalCapacity,
+        totalCurrentOccupancy,
+        breakdown: plans,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error fetching capacity data' });
+  }
+};

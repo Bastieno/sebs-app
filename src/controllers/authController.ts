@@ -338,3 +338,25 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
     } as ApiResponse);
   }
 };
+
+export const logout = async (req: Request, res: Response): Promise<void> => {
+  try {
+    // For stateless JWT, logout is handled client-side by deleting the token.
+    // This endpoint is provided for completeness and to allow for future
+    // stateful logic (e.g., token blocklisting).
+    res.status(200).json({
+      success: true,
+      message: 'Logout successful',
+      data: {
+        message: 'Token has been invalidated on the client-side.'
+      }
+    } as ApiResponse);
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: 'An unexpected error occurred during logout'
+    } as ApiResponse);
+  }
+};

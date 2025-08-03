@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { register, login, getProfile, changePassword } from '../controllers/authController';
+import { register, login, getProfile, changePassword, logout } from '../controllers/authController';
 import { requireAuth } from '../middleware/auth';
 
 const router = Router();
@@ -36,5 +36,13 @@ router.get('/profile', requireAuth, getProfile);
  * @body    { currentPassword, newPassword }
  */
 router.put('/change-password', requireAuth, changePassword);
+
+/**
+ * @route   POST /api/auth/logout
+ * @desc    Logout user (client-side token deletion)
+ * @access  Private
+ * @headers Authorization: Bearer <token>
+ */
+router.post('/logout', requireAuth, logout);
 
 export default router;

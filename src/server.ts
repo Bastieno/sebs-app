@@ -52,12 +52,14 @@ import qrCodeRoutes from './routes/qrCode';
 import adminRoutes from './routes/admin';
 import accessRoutes from './routes/access';
 import notificationRoutes from './routes/notification';
+import userRoutes from './routes/user';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/qr-code', qrCodeRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/access', accessRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/user', userRoutes);
 // app.use('/api/users', require('./routes/users'));
 // app.use('/api/subscriptions', require('./routes/subscriptions'));
 // app.use('/api/access', require('./routes/access'));
