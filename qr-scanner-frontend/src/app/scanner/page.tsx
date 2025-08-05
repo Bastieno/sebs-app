@@ -1,58 +1,81 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Scanner } from '@/components/scanner/Scanner';
 import { 
-  Camera,
-  ScanLine,
-  RotateCcw,
-  Volume2,
-  VolumeX,
-  ArrowRight,
-  ArrowLeft,
-  CheckCircle,
-  XCircle,
+  CheckCircle, 
+  XCircle, 
   Clock,
-  Users
+  Zap,
+  Users,
+  ArrowRight,
+  ArrowLeft
 } from 'lucide-react';
 
-export default function Scanner() {
-  const [isScanning, setIsScanning] = useState(false);
-  const [scanMode, setScanMode] = useState<'ENTRY' | 'EXIT'>('ENTRY');
-  const [audioEnabled, setAudioEnabled] = useState(true);
-  const [lastResult, setLastResult] = useState<{
-    success: boolean;
-    user?: string;
-    message: string;
-    timestamp: Date;
-  } | null>(null);
+interface QRScanResult {
+  text: string;
+  timestamp: Date;
+  format: string;
+}
 
-  // Mock recent activity - will be replaced with real data
+interface AccessResult {
+  id: string;
+  timestamp: Date;
+  result: 'success' | 'denied';
+  message: string;
+  user?: string;
+}
+
+export default function ScannerPage() {
+  const [lastScan, setLastScan] = useState<AccessResult | null>(null);
+  const [stats, setStats] = useState({ successful: 0, denied: 0, total: 0 });
+  const [scanMode, setScanMode] = useState<'ENTRY' | 'EXIT'>('ENTRY');
+
+  const handleScanResult = async (result: QRScanResult) => {
+    console.log('QR Code scanned:', result.text);
+    
+    // Mock access validation (in real app, this would call your backend API)
+    const mockValidation = Math.random() > 0.3;
+    
+    const accessResult: AccessResult = {
+      id: result.text,
+      timestamp: result.timestamp,
+      result: mockValidation ? 'success' : 'denied',
+      message: mockValidation 
+        ? `${scanMode.toLowerCase()} granted - Welcome!` 
+        : `${scanMode.toLowerCase()} denied - Please check your subscription`,
+      user: mockValidation ? 'John Doe' : undefined
+    };
+    
+    setLastScan(accessResult);
+    
+    // Update stats
+    setStats(prev => ({
+      ...prev,
+      total: prev.total + 1,
+      [mockValidation ? 'successful' : 'denied']: prev[mockValidation ? 'successful' : 'denied'] + 1
+    }));
+    
+    // TODO: Here you would call your backend API to validate the QR code
+    // const validation = await fetch('/api/validate-qr', {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({ qrCode: result.text, mode: scanMode })
+    // });
+  };
+
+  const handleScanError = (error: string) => {
+    console.error('Scanner error:', error);
+  };
+
+  // Mock recent activity
   const recentActivity = [
     { id: 1, user: 'John Doe', action: 'ENTRY', time: '2 min ago', status: 'success' },
     { id: 2, user: 'Jane Smith', action: 'EXIT', time: '5 min ago', status: 'success' },
     { id: 3, user: 'Mike Johnson', action: 'ENTRY', time: '8 min ago', status: 'denied' },
   ];
-
-  const handleStartScanning = () => {
-    setIsScanning(true);
-    // Mock scanning process - will be replaced with real QR scanner
-    setTimeout(() => {
-      setLastResult({
-        success: true,
-        user: 'John Doe',
-        message: 'Access granted - Premium Plan',
-        timestamp: new Date()
-      });
-      setIsScanning(false);
-    }, 2000);
-  };
-
-  const handleStopScanning = () => {
-    setIsScanning(false);
-  };
 
   return (
     <div className="space-y-6">
@@ -63,15 +86,10 @@ export default function Scanner() {
             Scan QR codes for access control
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setAudioEnabled(!audioEnabled)}
-          >
-            {audioEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-          </Button>
-        </div>
+        <Badge variant="secondary" className="text-sm">
+          <Clock className="w-4 h-4 mr-1" />
+          Ready to scan
+        </Badge>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -81,78 +99,57 @@ export default function Scanner() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <ScanLine className="h-5 w-5" />
+                <Zap className="h-5 w-5" />
                 Scanner Mode
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex gap-2">
-                <Button
-                  variant={scanMode === 'ENTRY' ? 'default' : 'outline'}
+              <div className="flex gap-2 mb-4">
+                <button
                   onClick={() => setScanMode('ENTRY')}
-                  className="flex-1"
+                  className={`flex-1 px-4 py-2 rounded-lg border-2 transition-colors ${
+                    scanMode === 'ENTRY' 
+                      ? 'border-blue-500 bg-blue-50 text-blue-700' 
+                      : 'border-gray-200 bg-white hover:bg-gray-50'
+                  }`}
                 >
-                  <ArrowRight className="h-4 w-4 mr-2" />
+                  <ArrowRight className="h-4 w-4 mr-2 inline" />
                   Entry
-                </Button>
-                <Button
-                  variant={scanMode === 'EXIT' ? 'default' : 'outline'}
+                </button>
+                <button
                   onClick={() => setScanMode('EXIT')}
-                  className="flex-1"
+                  className={`flex-1 px-4 py-2 rounded-lg border-2 transition-colors ${
+                    scanMode === 'EXIT' 
+                      ? 'border-blue-500 bg-blue-50 text-blue-700' 
+                      : 'border-gray-200 bg-white hover:bg-gray-50'
+                  }`}
                 >
-                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  <ArrowLeft className="h-4 w-4 mr-2 inline" />
                   Exit
-                </Button>
+                </button>
               </div>
             </CardContent>
           </Card>
 
-          {/* Camera Preview */}
-          <Card className="min-h-[400px]">
-            <CardHeader>
-              <CardTitle>Camera Preview</CardTitle>
-              <CardDescription>
-                Position QR code within the scanning area
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col items-center justify-center space-y-4 min-h-[300px]">
-              {!isScanning ? (
-                <div className="text-center space-y-4">
-                  <div className="w-32 h-32 mx-auto bg-gray-100 rounded-lg flex items-center justify-center">
-                    <Camera className="h-16 w-16 text-gray-400" />
-                  </div>
-                  <div>
-                    <p className="text-lg font-medium">Camera Ready</p>
-                    <p className="text-gray-600">Click start to begin scanning</p>
-                  </div>
-                  <Button onClick={handleStartScanning} size="lg">
-                    <ScanLine className="h-4 w-4 mr-2" />
-                    Start Scanning
-                  </Button>
-                </div>
-              ) : (
-                <div className="text-center space-y-4">
-                  <div className="w-32 h-32 mx-auto bg-blue-100 rounded-lg flex items-center justify-center animate-pulse">
-                    <ScanLine className="h-16 w-16 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-lg font-medium text-blue-600">Scanning...</p>
-                    <p className="text-gray-600">Hold QR code steady</p>
-                  </div>
-                  <Button onClick={handleStopScanning} variant="outline">
-                    Stop Scanning
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {/* Scanner Component */}
+          <Scanner
+            onResult={handleScanResult}
+            onError={handleScanError}
+            continuous={true}
+            showControls={true}
+            autoStart={false}
+          />
 
           {/* Last Scan Result */}
-          {lastResult && (
-            <Card className={`border-2 ${lastResult.success ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
+          {lastScan && (
+            <Card className={`border-2 ${
+              lastScan.result === 'success' 
+                ? 'border-green-200 bg-green-50' 
+                : 'border-red-200 bg-red-50'
+            }`}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  {lastResult.success ? (
+                  {lastScan.result === 'success' ? (
                     <CheckCircle className="h-5 w-5 text-green-600" />
                   ) : (
                     <XCircle className="h-5 w-5 text-red-600" />
@@ -163,22 +160,28 @@ export default function Scanner() {
               <CardContent>
                 <div className="space-y-2">
                   <div className="flex justify-between">
-                    <span className="font-medium">User:</span>
-                    <span>{lastResult.user || 'Unknown'}</span>
+                    <span className="font-medium">QR Code:</span>
+                    <span className="text-right break-all max-w-[200px]">{lastScan.id}</span>
                   </div>
+                  {lastScan.user && (
+                    <div className="flex justify-between">
+                      <span className="font-medium">User:</span>
+                      <span>{lastScan.user}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span className="font-medium">Status:</span>
-                    <Badge variant={lastResult.success ? 'default' : 'destructive'}>
-                      {lastResult.success ? 'Success' : 'Denied'}
+                    <Badge variant={lastScan.result === 'success' ? 'default' : 'destructive'}>
+                      {lastScan.result === 'success' ? 'Success' : 'Denied'}
                     </Badge>
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium">Message:</span>
-                    <span className="text-right">{lastResult.message}</span>
+                    <span className="text-right">{lastScan.message}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="font-medium">Time:</span>
-                    <span>{lastResult.timestamp.toLocaleTimeString()}</span>
+                    <span>{lastScan.timestamp.toLocaleString()}</span>
                   </div>
                 </div>
               </CardContent>
@@ -202,15 +205,7 @@ export default function Scanner() {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm">Scanner:</span>
-                <Badge variant={isScanning ? 'default' : 'secondary'}>
-                  {isScanning ? 'Active' : 'Ready'}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Audio:</span>
-                <Badge variant={audioEnabled ? 'default' : 'secondary'}>
-                  {audioEnabled ? 'On' : 'Off'}
-                </Badge>
+                <Badge variant="secondary">Ready</Badge>
               </div>
             </CardContent>
           </Card>
@@ -220,21 +215,27 @@ export default function Scanner() {
             <CardHeader>
               <CardTitle className="text-sm flex items-center gap-2">
                 <Users className="h-4 w-4" />
-                Quick Stats
+                Session Stats
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-sm">Current Occupancy:</span>
-                <span className="font-medium">18/50</span>
+                <span className="text-sm">Total Scans:</span>
+                <span className="font-medium">{stats.total}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm">Today&apos;s Scans:</span>
-                <span className="font-medium">42</span>
+                <span className="text-sm">Successful:</span>
+                <span className="font-medium text-green-600">{stats.successful}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Denied:</span>
+                <span className="font-medium text-red-600">{stats.denied}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm">Success Rate:</span>
-                <span className="font-medium text-green-600">94%</span>
+                <span className="font-medium text-blue-600">
+                  {stats.total > 0 ? Math.round((stats.successful / stats.total) * 100) : 0}%
+                </span>
               </div>
             </CardContent>
           </Card>
@@ -266,22 +267,6 @@ export default function Scanner() {
                   </div>
                 ))}
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button variant="outline" size="sm" className="w-full">
-                <RotateCcw className="h-4 w-4 mr-2" />
-                Reset Scanner
-              </Button>
-              <Button variant="outline" size="sm" className="w-full">
-                Manual Entry
-              </Button>
             </CardContent>
           </Card>
         </div>
