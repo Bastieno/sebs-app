@@ -3,17 +3,22 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useCamera } from '@/hooks/useCamera';
 import { useQRScanner } from '@/hooks/useQRScanner';
+import { validateQRCode, ValidationResponse } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 import { 
   Camera, 
   CameraOff, 
   SwitchCamera, 
-  Zap, 
-  ZapOff,
+  Zap,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  XCircle,
+  Clock,
+  Users,
+  Shield
 } from 'lucide-react';
 
 interface QRScanResult {
@@ -22,13 +27,21 @@ interface QRScanResult {
   format: string;
 }
 
+interface ValidationResult {
+  qrData: string;
+  response: ValidationResponse;
+  timestamp: Date;
+}
+
 interface ScannerProps {
-  onResult?: (result: QRScanResult) => void;
+  onResult?: (result: QRScanResult, validation?: ValidationResult) => void;
   onError?: (error: string) => void;
   continuous?: boolean;
   className?: string;
   showControls?: boolean;
   autoStart?: boolean;
+  mode?: 'ENTRY' | 'EXIT';
+  adminMode?: boolean;
 }
 
 export function Scanner({
@@ -37,11 +50,15 @@ export function Scanner({
   continuous = true,
   className = '',
   showControls = true,
-  autoStart = false
+  autoStart = false,
+  mode = 'ENTRY',
+  adminMode = false
 }: ScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isActive, setIsActive] = useState(false);
   const [lastScanResult, setLastScanResult] = useState<QRScanResult | null>(null);
+  const [lastValidation, setLastValidation] = useState<ValidationResult | null>(null);
+  const [isValidating, setIsValidating] = useState(false);
 
   // Camera hook
   const {
@@ -57,6 +74,67 @@ export function Scanner({
     requestPermission
   } = useCamera();
 
+  // Handle QR validation
+  const validateScannedCode = useCallback(async (qrData: string) => {
+    if (isValidating) return;
+    
+    setIsValidating(true);
+    try {
+      const response = await validateQRCode(qrData, mode);
+      const validationResult: ValidationResult = {
+        qrData,
+        response,
+        timestamp: new Date()
+      };
+      
+      setLastValidation(validationResult);
+      
+      // Show appropriate feedback
+      switch (response.validationResult) {
+        case 'SUCCESS':
+          toast.success(`Access granted! Welcome ${response.user?.name || 'User'}`, {
+            description: `${response.user?.plan || 'Plan'} • ${mode.toLowerCase()} recorded`
+          });
+          break;
+        case 'DENIED':
+          toast.error('Access denied', {
+            description: 'Invalid QR code or subscription'
+          });
+          break;
+        case 'EXPIRED':
+          toast.error('Subscription expired', {
+            description: 'Please renew your subscription'
+          });
+          break;
+        case 'INVALID_TIME':
+          toast.error('Access not allowed at this time', {
+            description: 'Outside of plan hours'
+          });
+          break;
+        case 'CAPACITY_FULL':
+          toast.error('Capacity full', {
+            description: 'Maximum occupancy reached'
+          });
+          break;
+        default:
+          toast.error('Validation failed', {
+            description: response.message || 'Unknown error'
+          });
+      }
+      
+      return validationResult;
+    } catch (error) {
+      console.error('QR validation failed:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Validation failed';
+      toast.error('Validation Error', {
+        description: errorMessage
+      });
+      return null;
+    } finally {
+      setIsValidating(false);
+    }
+  }, [mode, isValidating]);
+
   // QR Scanner hook
   const {
     isScanning,
@@ -67,15 +145,19 @@ export function Scanner({
     stopScanning,
     scanSingleFrame
   } = useQRScanner({
-    onResult: (result) => {
+    onResult: async (result) => {
       setLastScanResult(result);
+      
+      // Validate the QR code
+      const validation = await validateScannedCode(result.text);
+      
       if (onResult) {
-        onResult(result);
+        onResult(result, validation || undefined);
       }
     },
     onError,
     continuous,
-    scanDelay: 300
+    scanDelay: 1000 // Increase delay to prevent rapid scanning
   });
 
   const handleStart = useCallback(async () => {
@@ -151,10 +233,34 @@ export function Scanner({
       const result = await scanSingleFrame(videoRef.current);
       if (result) {
         setLastScanResult(result);
+        
+        // Validate the QR code
+        const validation = await validateScannedCode(result.text);
+        
         if (onResult) {
-          onResult(result);
+          onResult(result, validation || undefined);
         }
       }
+    }
+  };
+
+  // Get status icon and color based on validation result
+  const getValidationStatus = (validation?: ValidationResult) => {
+    if (!validation) return { icon: AlertCircle, color: 'text-gray-500', bgColor: 'bg-gray-100' };
+    
+    switch (validation.response.validationResult) {
+      case 'SUCCESS':
+        return { icon: CheckCircle, color: 'text-green-600', bgColor: 'bg-green-100' };
+      case 'DENIED':
+        return { icon: XCircle, color: 'text-red-600', bgColor: 'bg-red-100' };
+      case 'EXPIRED':
+        return { icon: Clock, color: 'text-orange-600', bgColor: 'bg-orange-100' };
+      case 'INVALID_TIME':
+        return { icon: Clock, color: 'text-yellow-600', bgColor: 'bg-yellow-100' };
+      case 'CAPACITY_FULL':
+        return { icon: Users, color: 'text-purple-600', bgColor: 'bg-purple-100' };
+      default:
+        return { icon: AlertCircle, color: 'text-gray-600', bgColor: 'bg-gray-100' };
     }
   };
 
@@ -263,35 +369,93 @@ export function Scanner({
                 </Button>
               )}
 
-              {/* Scanning Status */}
-              <div className="flex items-center justify-center space-x-2">
-                {isScanning ? (
-                  <>
-                    <ZapOff className="w-4 h-4 text-green-500" />
-                    <Badge variant="secondary" className="bg-green-100 text-green-800">
-                      Scanning...
-                    </Badge>
-                  </>
-                ) : isActive ? (
-                  <>
-                    <Zap className="w-4 h-4 text-blue-500" />
-                    <Badge variant="secondary">Ready to scan</Badge>
-                  </>
-                ) : (
-                  <>
-                    <CameraOff className="w-4 h-4 text-gray-500" />
-                    <Badge variant="outline">Inactive</Badge>
-                  </>
-                )}
+              {/* Mode and Status */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Shield className="w-4 h-4 text-blue-500" />
+                  <Badge variant="outline" className="bg-blue-50">
+                    {adminMode ? 'Admin' : mode} Mode
+                  </Badge>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  {isValidating ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                      <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                        Validating...
+                      </Badge>
+                    </>
+                  ) : isScanning ? (
+                    <>
+                      <Zap className="w-4 h-4 text-green-500" />
+                      <Badge variant="secondary" className="bg-green-100 text-green-800">
+                        Scanning...
+                      </Badge>
+                    </>
+                  ) : isActive ? (
+                    <>
+                      <Zap className="w-4 h-4 text-blue-500" />
+                      <Badge variant="secondary">Ready</Badge>
+                    </>
+                  ) : (
+                    <>
+                      <CameraOff className="w-4 h-4 text-gray-500" />
+                      <Badge variant="outline">Inactive</Badge>
+                    </>
+                  )}
+                </div>
               </div>
 
-              {/* Last Result */}
-              {(lastResult || lastScanResult) && (
+              {/* Last Validation Result */}
+              {lastValidation && (
+                <div className={`mt-4 p-3 rounded-lg ${getValidationStatus(lastValidation).bgColor}`}>
+                  <div className="flex items-start space-x-3">
+                    {React.createElement(getValidationStatus(lastValidation).icon, {
+                      className: `w-5 h-5 mt-0.5 flex-shrink-0 ${getValidationStatus(lastValidation).color}`
+                    })}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-sm font-medium text-gray-900">
+                          {lastValidation.response.validationResult === 'SUCCESS' ? 'Access Granted' : 'Access Denied'}
+                        </p>
+                        <Badge 
+                          variant={lastValidation.response.validationResult === 'SUCCESS' ? 'default' : 'destructive'}
+                          className="text-xs"
+                        >
+                          {lastValidation.response.validationResult.replace('_', ' ')}
+                        </Badge>
+                      </div>
+                      
+                      {lastValidation.response.user && (
+                        <div className="space-y-1">
+                          <p className="text-sm text-gray-700 font-medium">
+                            {lastValidation.response.user.name}
+                          </p>
+                          <p className="text-xs text-gray-600">
+                            {lastValidation.response.user.plan}
+                          </p>
+                        </div>
+                      )}
+                      
+                      <p className="text-xs text-gray-500 break-all mt-2">
+                        {lastValidation.qrData}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {lastValidation.timestamp.toLocaleTimeString()}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Raw QR Data (for debugging) */}
+              {(lastResult || lastScanResult) && !lastValidation && (
                 <div className="mt-4 p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-start space-x-2">
-                    <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                    <AlertCircle className="w-5 h-5 text-gray-500 mt-0.5 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900">Last Scan</p>
+                      <p className="text-sm font-medium text-gray-900">Raw QR Data</p>
                       <p className="text-sm text-gray-600 break-all">
                         {(lastResult || lastScanResult)?.text}
                       </p>
