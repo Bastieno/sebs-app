@@ -13,49 +13,40 @@ import {
   Calendar,
   BarChart3
 } from 'lucide-react';
+import { useCapacityData, useCurrentOccupants, useTodaysStats } from '@/hooks/useApi';
 
 export default function Capacity() {
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const { data: capacityResponse, refetch: refetchCapacity } = useCapacityData();
+  const { data: occupants, refetch: refetchOccupants } = useCurrentOccupants();
+  const { data: todaysStats, refetch: refetchStats } = useTodaysStats();
 
-  // Mock data - will be replaced with real API data
-  const capacityData = {
-    current: 18,
-    maximum: 50,
-    percentage: 36,
-    trend: 'up', // 'up', 'down', 'stable'
-    lastUpdated: new Date(),
-    peakToday: 32,
-    peakTime: '2:30 PM',
-    avgDuration: '3h 45m',
-    turnoverRate: 2.3
-  };
-
-  const currentOccupants = [
-    { id: 1, name: 'John Doe', plan: 'Premium', entryTime: '08:30 AM', duration: '6h 15m' },
-    { id: 2, name: 'Jane Smith', plan: 'Standard', entryTime: '10:15 AM', duration: '4h 30m' },
-    { id: 3, name: 'Mike Johnson', plan: 'Morning', entryTime: '09:00 AM', duration: '5h 45m' },
-    { id: 4, name: 'Sarah Wilson', plan: 'Premium', entryTime: '11:45 AM', duration: '3h 00m' },
-    { id: 5, name: 'David Brown', plan: 'Afternoon', entryTime: '12:30 PM', duration: '2h 15m' },
-  ];
-
-  const timeSlots = [
-    { time: '8 AM', morning: 12, afternoon: 0, night: 0, total: 12 },
-    { time: '10 AM', morning: 15, afternoon: 0, night: 0, total: 15 },
-    { time: '12 PM', morning: 8, afternoon: 12, night: 0, total: 20 },
-    { time: '2 PM', morning: 4, afternoon: 18, night: 0, total: 22 },
-    { time: '4 PM', morning: 2, afternoon: 20, night: 0, total: 22 },
-    { time: '6 PM', morning: 0, afternoon: 15, night: 8, total: 23 },
-    { time: '8 PM', morning: 0, afternoon: 8, night: 15, total: 23 },
-    { time: '10 PM', morning: 0, afternoon: 4, night: 18, total: 22 },
-  ];
-
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setIsRefreshing(true);
-    // Mock refresh delay
-    setTimeout(() => {
+    try {
+      await Promise.all([refetchCapacity(), refetchOccupants(), refetchStats()]);
+    } finally {
       setIsRefreshing(false);
-    }, 1500);
+    }
   };
+
+  // Calculate capacity metrics from API data
+  const capacityData = {
+    current: capacityResponse?.success ? capacityResponse.data.totalCurrentOccupancy : 0,
+    maximum: capacityResponse?.success ? capacityResponse.data.totalCapacity : 0,
+    percentage: capacityResponse?.success && capacityResponse.data.totalCapacity > 0 
+      ? Math.round((capacityResponse.data.totalCurrentOccupancy / capacityResponse.data.totalCapacity) * 100) 
+      : 0,
+    trend: 'stable' as const,
+    lastUpdated: new Date(),
+    peakToday: todaysStats?.totalEntries || 0,
+    peakTime: 'N/A',
+    avgDuration: 'N/A', // Would need additional calculation from logs
+    turnoverRate: 0 // Would need additional calculation
+  };
+
+  const currentOccupants = occupants || [];
+
 
   const getCapacityStatus = (percentage: number) => {
     if (percentage >= 90) return { status: 'critical', color: 'text-red-600', bgColor: 'bg-red-100' };
@@ -222,29 +213,10 @@ export default function Capacity() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {timeSlots.map((slot, index) => {
-                const percentage = Math.round((slot.total / capacityData.maximum) * 100);
-                return (
-                  <div key={index} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">{slot.time}</span>
-                      <span className="text-sm text-gray-600">{slot.total}/50</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${percentage}%` }}
-                      />
-                    </div>
-                    <div className="flex justify-between text-xs text-gray-600">
-                      <span>Morning: {slot.morning}</span>
-                      <span>Afternoon: {slot.afternoon}</span>
-                      <span>Night: {slot.night}</span>
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="text-center py-8">
+              <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600 mb-2">No timeline data available</p>
+              <p className="text-sm text-gray-500">Capacity timeline will show when data is available</p>
             </div>
           </CardContent>
         </Card>

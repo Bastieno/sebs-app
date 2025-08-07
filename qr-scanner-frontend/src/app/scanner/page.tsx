@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Scanner } from '@/components/scanner/Scanner';
+import { useQRValidation } from '@/hooks/useApi';
 import { 
   CheckCircle, 
   XCircle, 
@@ -33,49 +34,59 @@ export default function ScannerPage() {
   const [stats, setStats] = useState({ successful: 0, denied: 0, total: 0 });
   const [scanMode, setScanMode] = useState<'ENTRY' | 'EXIT'>('ENTRY');
 
+  const { validateQR } = useQRValidation();
+
   const handleScanResult = async (result: QRScanResult) => {
     console.log('QR Code scanned:', result.text);
     
-    // Mock access validation (in real app, this would call your backend API)
-    const mockValidation = Math.random() > 0.3;
-    
-    const accessResult: AccessResult = {
-      id: result.text,
-      timestamp: result.timestamp,
-      result: mockValidation ? 'success' : 'denied',
-      message: mockValidation 
-        ? `${scanMode.toLowerCase()} granted - Welcome!` 
-        : `${scanMode.toLowerCase()} denied - Please check your subscription`,
-      user: mockValidation ? 'John Doe' : undefined
-    };
-    
-    setLastScan(accessResult);
-    
-    // Update stats
-    setStats(prev => ({
-      ...prev,
-      total: prev.total + 1,
-      [mockValidation ? 'successful' : 'denied']: prev[mockValidation ? 'successful' : 'denied'] + 1
-    }));
-    
-    // TODO: Here you would call your backend API to validate the QR code
-    // const validation = await fetch('/api/validate-qr', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ qrCode: result.text, mode: scanMode })
-    // });
+    try {
+      // Call backend API for validation
+      const validation = await validateQR(result.text, scanMode);
+      
+      const accessResult: AccessResult = {
+        id: result.text,
+        timestamp: result.timestamp,
+        result: validation.validationResult === 'SUCCESS' ? 'success' : 'denied',
+        message: validation.validationResult === 'SUCCESS' 
+          ? `${scanMode.toLowerCase()} granted - Welcome!` 
+          : `${scanMode.toLowerCase()} denied - ${validation.validationResult}`,
+        user: validation.user?.name
+      };
+      
+      setLastScan(accessResult);
+      
+      // Update stats
+      setStats(prev => ({
+        ...prev,
+        total: prev.total + 1,
+        [validation.validationResult === 'SUCCESS' ? 'successful' : 'denied']: 
+          prev[validation.validationResult === 'SUCCESS' ? 'successful' : 'denied'] + 1
+      }));
+      
+    } catch (error) {
+      console.error('QR validation failed:', error);
+      
+      const accessResult: AccessResult = {
+        id: result.text,
+        timestamp: result.timestamp,
+        result: 'denied',
+        message: error instanceof Error ? error.message : 'Validation failed - please try again',
+        user: undefined
+      };
+      
+      setLastScan(accessResult);
+      setStats(prev => ({
+        ...prev,
+        total: prev.total + 1,
+        denied: prev.denied + 1
+      }));
+    }
   };
 
   const handleScanError = (error: string) => {
     console.error('Scanner error:', error);
   };
 
-  // Mock recent activity
-  const recentActivity = [
-    { id: 1, user: 'John Doe', action: 'ENTRY', time: '2 min ago', status: 'success' },
-    { id: 2, user: 'Jane Smith', action: 'EXIT', time: '5 min ago', status: 'success' },
-    { id: 3, user: 'Mike Johnson', action: 'ENTRY', time: '8 min ago', status: 'denied' },
-  ];
 
   return (
     <div className="space-y-6">
@@ -249,23 +260,9 @@ export default function ScannerPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {recentActivity.map((activity) => (
-                  <div key={activity.id} className="flex items-center justify-between text-sm">
-                    <div>
-                      <p className="font-medium">{activity.user}</p>
-                      <p className="text-gray-600">{activity.time}</p>
-                    </div>
-                    <div className="text-right">
-                      <Badge
-                        variant={activity.status === 'success' ? 'default' : 'destructive'}
-                        className="text-xs"
-                      >
-                        {activity.action}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
+              <div className="text-center py-4">
+                <Clock className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                <p className="text-sm text-gray-500">No recent activity</p>
               </div>
             </CardContent>
           </Card>

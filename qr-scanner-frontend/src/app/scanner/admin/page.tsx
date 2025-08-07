@@ -41,40 +41,12 @@ export default function AdminScannerPage() {
   const handleScanResult = async (result: QRScanResult) => {
     console.log('Admin QR Code scanned:', result.text);
     
-    // Mock admin validation with higher success rate
-    const mockValidation = Math.random() > 0.1; // 90% success rate for admin
+    // Admin scanner functionality not implemented yet
+    // This would need admin-specific validation endpoints
+    console.log('Admin QR Code validation needed for:', result.text);
+    console.log('Override mode:', overrideMode);
     
-    const accessResult: AdminAccessResult = {
-      id: result.text,
-      timestamp: result.timestamp,
-      result: mockValidation ? 'success' : 'denied',
-      message: mockValidation 
-        ? 'Access granted - Admin verification successful' 
-        : 'Access denied - Invalid QR code or expired subscription',
-      user: mockValidation ? 'Jane Admin' : undefined,
-      override: overrideMode
-    };
-    
-    setLastScan(accessResult);
-    
-    // Update stats
-    setStats(prev => ({
-      ...prev,
-      total: prev.total + 1,
-      [mockValidation ? 'successful' : 'denied']: prev[mockValidation ? 'successful' : 'denied'] + 1,
-      overrides: overrideMode ? prev.overrides + 1 : prev.overrides
-    }));
-    
-    // TODO: Call backend API for admin validation
-    // const validation = await fetch('/api/admin/validate-qr', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ 
-    //     qrCode: result.text, 
-    //     adminOverride: overrideMode,
-    //     adminId: 'current-admin-id' 
-    //   })
-    // });
+    setLastScan(null);
   };
 
   const handleScanError = (error: string) => {
@@ -114,12 +86,6 @@ export default function AdminScannerPage() {
     }));
   };
 
-  // Mock admin activity
-  const adminActivity = [
-    { id: 1, admin: 'Jane Admin', action: 'Override Access', time: '5 min ago', type: 'override' },
-    { id: 2, admin: 'John Admin', action: 'Manual Entry', time: '12 min ago', type: 'manual' },
-    { id: 3, admin: 'Jane Admin', action: 'QR Validation', time: '18 min ago', type: 'scan' },
-  ];
 
   return (
     <div className="space-y-6">
@@ -342,28 +308,10 @@ export default function AdminScannerPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {adminActivity.map((activity) => (
-                  <div key={activity.id} className="flex items-center justify-between text-sm">
-                    <div>
-                      <p className="font-medium">{activity.admin}</p>
-                      <p className="text-gray-600">{activity.time}</p>
-                    </div>
-                    <div className="text-right">
-                      <Badge
-                        variant={
-                          activity.type === 'override' 
-                            ? 'default' 
-                            : activity.type === 'manual' 
-                            ? 'secondary' 
-                            : 'outline'
-                        }
-                        className="text-xs"
-                      >
-                        {activity.action}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
+                <div className="text-center py-4">
+                  <Clock className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                  <p className="text-sm text-gray-500">No admin activity</p>
+                </div>
               </div>
             </CardContent>
           </Card>

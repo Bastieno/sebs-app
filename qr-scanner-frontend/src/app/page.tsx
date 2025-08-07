@@ -1,3 +1,6 @@
+'use client';
+
+import { useState } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,17 +11,32 @@ import {
   Clock, 
   CheckCircle, 
   AlertCircle,
-  ArrowRight 
+  ArrowRight,
+  RefreshCw 
 } from 'lucide-react';
+import { useTodaysStats, useCapacityData, useHealthCheck } from '@/hooks/useApi';
 
 export default function Dashboard() {
-  // Mock data - will be replaced with real data from API
+  const { data: todaysStats, loading: statsLoading, error: statsError, refetch: refetchStats } = useTodaysStats();
+  const { data: capacityData, loading: capacityLoading, error: capacityError, refetch: refetchCapacity } = useCapacityData();
+  const { loading: healthLoading, error: healthError, refetch: refetchHealth } = useHealthCheck();
+  const [lastRefresh, setLastRefresh] = useState(new Date());
+
+  const handleRefresh = async () => {
+    await Promise.all([refetchStats(), refetchCapacity(), refetchHealth()]);
+    setLastRefresh(new Date());
+  };
+
+  // Determine system status based on API connectivity and health check
+  const systemStatus = (statsError || capacityError || healthError) ? 'offline' : 'online';
+  const isLoading = statsLoading || capacityLoading || healthLoading;
+  
   const stats = {
-    todayEntries: 42,
-    currentOccupancy: 18,
-    totalCapacity: 50,
-    systemStatus: 'online',
-    lastScanned: '2 minutes ago'
+    todayEntries: todaysStats?.totalEntries || 0,
+    currentOccupancy: capacityData?.success ? capacityData.data.totalCurrentOccupancy : 0,
+    totalCapacity: capacityData?.success ? capacityData.data.totalCapacity : 0,
+    systemStatus,
+    lastScanned: todaysStats?.lastScanTime || 'No recent activity'
   };
 
   return (
@@ -57,7 +75,7 @@ export default function Dashboard() {
               {stats.currentOccupancy}/{stats.totalCapacity}
             </div>
             <p className="text-xs text-muted-foreground">
-              {Math.round((stats.currentOccupancy / stats.totalCapacity) * 100)}% occupied
+              {stats.totalCapacity > 0 ? Math.round((stats.currentOccupancy / stats.totalCapacity) * 100) : 0}% occupied
             </p>
           </CardContent>
         </Card>
@@ -105,8 +123,35 @@ export default function Dashboard() {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Backend Connection</span>
-              <Badge variant="default">Connected</Badge>
+              <Badge variant={stats.systemStatus === 'online' ? 'default' : 'destructive'}>
+                {stats.systemStatus === 'online' ? 'Connected' : 'Disconnected'}
+              </Badge>
             </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Last Refresh</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">{lastRefresh.toLocaleTimeString()}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleRefresh}
+                  disabled={isLoading}
+                  className="h-6 w-6 p-0"
+                >
+                  <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
+            </div>
+            {(statsError || capacityError || healthError) && (
+              <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
+                <p className="font-medium mb-1">Connection Issues:</p>
+                <ul className="text-xs space-y-1">
+                  {statsError && <li>• Stats: {statsError}</li>}
+                  {capacityError && <li>• Capacity: {capacityError}</li>}
+                  {healthError && <li>• Health Check: {healthError}</li>}
+                </ul>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
