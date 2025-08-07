@@ -23,7 +23,7 @@ app.use(helmet());
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? ['https://yourdomain.com'] 
-    : ['http://localhost:3000', 'http://localhost:3001'],
+    : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002'],
   credentials: true
 }));
 
@@ -69,8 +69,6 @@ app.use('/api/super-admin', superAdminRoutes);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 // app.use('/api/users', require('./routes/users'));
 // app.use('/api/subscriptions', require('./routes/subscriptions'));
-// app.use('/api/access', require('./routes/access'));
-// app.use('/api/admin', require('./routes/admin'));
 
 // Root endpoint
 app.get('/', (req: Request, res: Response) => {

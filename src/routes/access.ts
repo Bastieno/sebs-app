@@ -53,7 +53,7 @@ router.post('/validate-qr', validateQrCode);
  *       '401':
  *         description: Unauthorized
  */
-router.get('/logs', requireAdmin, getAccessLogs);
+router.get('/logs', getAccessLogs);
 
 /**
  * @swagger
@@ -69,6 +69,6 @@ router.get('/logs', requireAdmin, getAccessLogs);
  *       '401':
  *         description: Unauthorized
  */
-router.get('/current-capacity', requireAdmin, getCurrentCapacity);
+router.get('/current-capacity', getCurrentCapacity);
 
 export default router;
