@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,11 @@ export default function Dashboard() {
   const { data: capacityData, loading: capacityLoading, error: capacityError, refetch: refetchCapacity } = useCapacityData();
   const { loading: healthLoading, error: healthError, refetch: refetchHealth } = useHealthCheck();
   const [lastRefresh, setLastRefresh] = useState(new Date());
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const handleRefresh = async () => {
     await Promise.all([refetchStats(), refetchCapacity(), refetchHealth()]);
@@ -130,7 +135,9 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Last Refresh</span>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">{lastRefresh.toLocaleTimeString()}</span>
+                <span className="text-xs text-muted-foreground">
+                  {isClient ? lastRefresh.toLocaleTimeString() : '--:--:--'}
+                </span>
                 <Button
                   variant="ghost"
                   size="sm"

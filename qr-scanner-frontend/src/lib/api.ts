@@ -105,7 +105,7 @@ export async function getAccessLogs(): Promise<{ success: boolean; data: AccessL
 
 // Get current capacity
 export async function getCurrentCapacity(): Promise<CapacityData> {
-  return apiCall<CapacityData>('/api/access/capacity');
+  return apiCall<CapacityData>('/api/access/current-capacity');
 }
 
 // Generate QR code for a subscription
@@ -130,7 +130,7 @@ export async function adminValidateQRCode(
 
 // Health check to test API connectivity
 export async function healthCheck(): Promise<{ status: string; timestamp: string }> {
-  return apiCall<{ status: string; timestamp: string }>('/api/health');
+  return apiCall<{ status: string; timestamp: string }>('/health');
 }
 
 // Error handler for API calls
