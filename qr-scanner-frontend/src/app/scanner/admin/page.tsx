@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Scanner } from '@/components/scanner/Scanner';
+import { formatFriendlyTimestamp } from '@/lib/utils';
 import { 
   Shield,
   CheckCircle, 
@@ -185,7 +186,7 @@ export default function AdminScannerPage() {
                 : 'border-red-200 bg-red-50'
             }`}>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="text-sm flex items-center gap-2">
                   {lastScan.result === 'success' ? (
                     <CheckCircle className="h-5 w-5 text-green-600" />
                   ) : (
@@ -200,34 +201,34 @@ export default function AdminScannerPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="font-medium">QR Code:</span>
-                    <span className="text-right break-all max-w-[200px]">{lastScan.id}</span>
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">QR Code:</span>
+                    <span className="font-medium text-right break-all max-w-[200px]">{lastScan.id}</span>
                   </div>
                   {lastScan.user && (
-                    <div className="flex justify-between">
-                      <span className="font-medium">User:</span>
-                      <span>{lastScan.user}</span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600">User:</span>
+                      <span className="font-medium">{lastScan.user}</span>
                     </div>
                   )}
-                  <div className="flex justify-between">
-                    <span className="font-medium">Status:</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">Status:</span>
                     <Badge variant={lastScan.result === 'success' ? 'default' : 'destructive'}>
                       {lastScan.result === 'success' ? 'Success' : 'Denied'}
                     </Badge>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium">Message:</span>
-                    <span className="text-right">{lastScan.message}</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">Message:</span>
+                    <span className="font-medium text-right">{lastScan.message}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium">Time:</span>
-                    <span>{lastScan.timestamp.toLocaleString()}</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">Time:</span>
+                    <span className="font-medium">{formatFriendlyTimestamp(lastScan.timestamp)}</span>
                   </div>
                   {lastScan.override && (
-                    <div className="flex justify-between">
-                      <span className="font-medium">Override:</span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600">Override:</span>
                       <Badge variant="secondary" className="text-xs">
                         Admin Override Active
                       </Badge>

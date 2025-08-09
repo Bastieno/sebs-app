@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Scanner } from '@/components/scanner/Scanner';
+import { capitalize, formatFriendlyTimestamp } from '@/lib/utils';
 import { 
   CheckCircle, 
   XCircle, 
@@ -59,8 +60,8 @@ export default function ScannerPage() {
       timestamp: timestamp,
       result: response.validationResult === 'SUCCESS' ? 'success' : 'denied',
       message: response.message || (response.validationResult === 'SUCCESS' 
-        ? `${scanMode.toLowerCase()} granted - Welcome!` 
-        : `${scanMode.toLowerCase()} denied - ${response.validationResult}`),
+        ? `${capitalize(scanMode)} granted - Welcome!` 
+        : `${capitalize(scanMode)} denied - ${response.validationResult}`),
       user: response.user?.name
     };
     
@@ -147,53 +148,6 @@ export default function ScannerPage() {
             mode={scanMode}
           />
 
-          {/* Last Scan Result */}
-          {lastScan && (
-            <Card className={`border-2 ${
-              lastScan.result === 'success' 
-                ? 'border-green-200 bg-green-50' 
-                : 'border-red-200 bg-red-50'
-            }`}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  {lastScan.result === 'success' ? (
-                    <CheckCircle className="h-5 w-5 text-green-600" />
-                  ) : (
-                    <XCircle className="h-5 w-5 text-red-600" />
-                  )}
-                  Last Scan Result
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="font-medium">QR Code:</span>
-                    <span className="text-right break-all max-w-[200px]">{lastScan.id}</span>
-                  </div>
-                  {lastScan.user && (
-                    <div className="flex justify-between">
-                      <span className="font-medium">User:</span>
-                      <span>{lastScan.user}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between">
-                    <span className="font-medium">Status:</span>
-                    <Badge variant={lastScan.result === 'success' ? 'default' : 'destructive'}>
-                      {lastScan.result === 'success' ? 'Success' : 'Denied'}
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium">Message:</span>
-                    <span className="text-right">{lastScan.message}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium">Time:</span>
-                    <span>{lastScan.timestamp.toLocaleString()}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </div>
 
         {/* Sidebar */}
@@ -262,6 +216,50 @@ export default function ScannerPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Last Scan Result */}
+          {lastScan && (
+            <Card className={`border-2 ${
+              lastScan.result === 'success' 
+                ? 'border-green-200 bg-green-50' 
+                : 'border-red-200 bg-red-50'
+            }`}>
+              <CardHeader>
+                <CardTitle className="text-sm flex items-center gap-2">
+                  {lastScan.result === 'success' ? (
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  ) : (
+                    <XCircle className="h-5 w-5 text-red-600" />
+                  )}
+                  Last Scan Result
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3 text-sm">
+                  {lastScan.user && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600">User:</span>
+                      <span className="font-medium">{lastScan.user}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">Status:</span>
+                    <Badge variant={lastScan.result === 'success' ? 'default' : 'destructive'}>
+                      {lastScan.result === 'success' ? 'Success' : 'Denied'}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">Message:</span>
+                    <span className="font-medium text-right">{lastScan.message}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">Time:</span>
+                    <span className="font-medium">{formatFriendlyTimestamp(lastScan.timestamp)}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>

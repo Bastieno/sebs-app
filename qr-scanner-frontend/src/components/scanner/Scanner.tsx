@@ -498,9 +498,11 @@ export function Scanner({
                         </div>
                       )}
                       
-                      <p className="text-xs text-gray-500 break-all mt-2">
-                        {lastValidation.qrData}
-                      </p>
+                      {lastValidation.response.message && (
+                        <p className="text-sm text-gray-700 mt-2">
+                          <span className="font-medium">Message:</span> {lastValidation.response.message}
+                        </p>
+                      )}
                       <p className="text-xs text-gray-500 mt-1">
                         {lastValidation.timestamp.toLocaleTimeString()}
                       </p>
