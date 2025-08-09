@@ -2,10 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { 
   getAccessLogs, 
   getCurrentCapacity, 
-  validateQRCode,
   healthCheck,
   AccessLog,
-  ValidationResponse 
 } from '@/lib/api';
 
 interface UseApiState<T> {
@@ -64,38 +62,6 @@ export const useCapacityData = () => {
 
 export const useHealthCheck = () => {
   return useApi(healthCheck);
-};
-
-// Hook for QR validation with manual trigger
-export const useQRValidation = () => {
-  const [validationState, setValidationState] = useState<{
-    data: ValidationResponse | null;
-    loading: boolean;
-    error: string | null;
-  }>({
-    data: null,
-    loading: false,
-    error: null
-  });
-
-  const validateQR = useCallback(async (qrToken: string, action: 'ENTRY' | 'EXIT' = 'ENTRY') => {
-    setValidationState(prev => ({ ...prev, loading: true, error: null }));
-    
-    try {
-      const result = await validateQRCode(qrToken, action);
-      setValidationState({ data: result, loading: false, error: null });
-      return result;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Validation failed';
-      setValidationState({ data: null, loading: false, error: errorMessage });
-      throw error;
-    }
-  }, []);
-
-  return {
-    ...validationState,
-    validateQR
-  };
 };
 
 // Hook for calculated today's stats

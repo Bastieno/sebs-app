@@ -59,6 +59,12 @@ export function Scanner({
   const [lastScanResult, setLastScanResult] = useState<QRScanResult | null>(null);
   const [lastValidation, setLastValidation] = useState<ValidationResult | null>(null);
   const [isValidating, setIsValidating] = useState(false);
+  const lastProcessedQR = useRef<string>('');
+  const lastProcessedTime = useRef<number>(0);
+  const scannerFunctionsRef = useRef<{
+    startScanning?: (video: HTMLVideoElement, deviceId?: string) => void;
+    stopScanning?: () => void;
+  }>({});
 
   // Camera hook
   const {
@@ -76,11 +82,36 @@ export function Scanner({
 
   // Handle QR validation
   const validateScannedCode = useCallback(async (qrData: string) => {
-    if (isValidating) return;
+    // Prevent duplicate validation of the same QR code within 5 seconds
+    const now = Date.now();
+    if (
+      isValidating || 
+      (lastProcessedQR.current === qrData && now - lastProcessedTime.current < 5000)
+    ) {
+      console.log('Skipping duplicate QR validation');
+      return null;
+    }
     
+    lastProcessedQR.current = qrData;
+    lastProcessedTime.current = now;
     setIsValidating(true);
+    
     try {
-      const response = await validateQRCode(qrData, mode);
+      // Always parse the QR code data to extract the token
+      let qrToken;
+      try {
+        const parsedData = JSON.parse(qrData);
+        qrToken = parsedData.token || qrData;
+      } catch (e) {
+        // If parsing fails, assume the QR data is the token itself
+        qrToken = qrData;
+      }
+      
+      if (!qrToken) {
+        console.log('No QR token found, skipping validation');
+        return null;
+      }
+      const response = await validateQRCode(qrToken, mode);
       const validationResult: ValidationResult = {
         qrData,
         response,
@@ -95,6 +126,19 @@ export function Scanner({
           toast.success(`Access granted! Welcome ${response.user?.name || 'User'}`, {
             description: `${response.user?.plan || 'Plan'} • ${mode.toLowerCase()} recorded`
           });
+          // Stop scanning after successful validation to prevent duplicates
+          if (continuous && scannerFunctionsRef.current.stopScanning) {
+            scannerFunctionsRef.current.stopScanning();
+            // Auto restart after 3 seconds for next person
+            setTimeout(() => {
+              if (isActive) {
+                const videoElement = videoRef.current;
+                if (videoElement && stream && scannerFunctionsRef.current.startScanning) {
+                  scannerFunctionsRef.current.startScanning(videoElement, selectedDeviceId || undefined);
+                }
+              }
+            }, 3000);
+          }
           break;
         case 'DENIED':
           toast.error('Access denied', {
@@ -133,7 +177,7 @@ export function Scanner({
     } finally {
       setIsValidating(false);
     }
-  }, [mode, isValidating]);
+  }, [mode, isValidating, continuous, isActive, stream, selectedDeviceId]);
 
   // QR Scanner hook
   const {
@@ -146,19 +190,32 @@ export function Scanner({
     scanSingleFrame
   } = useQRScanner({
     onResult: async (result) => {
+      if (!result) {
+        console.log('Null result from scanner');
+        return;
+      }
+      
       setLastScanResult(result);
       
       // Validate the QR code
       const validation = await validateScannedCode(result.text);
       
-      if (onResult) {
-        onResult(result, validation || undefined);
+      if (validation && onResult) {
+        onResult(result, validation);
       }
     },
     onError,
     continuous,
-    scanDelay: 1000 // Increase delay to prevent rapid scanning
+    scanDelay: 500 // Reduced since we stop after successful scan
   });
+
+  // Store scanner functions in ref for use in validation callback
+  useEffect(() => {
+    scannerFunctionsRef.current = {
+      startScanning,
+      stopScanning
+    };
+  }, [startScanning, stopScanning]);
 
   const handleStart = useCallback(async () => {
     try {
@@ -214,6 +271,9 @@ export function Scanner({
     stopScanning();
     stopCamera();
     setIsActive(false);
+    // Reset last processed QR when stopping
+    lastProcessedQR.current = '';
+    lastProcessedTime.current = 0;
   };
 
   const handleSwitchCamera = async () => {

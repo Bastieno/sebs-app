@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Scanner } from '@/components/scanner/Scanner';
-import { useQRValidation } from '@/hooks/useApi';
 import { 
   CheckCircle, 
   XCircle, 
@@ -21,6 +20,20 @@ interface QRScanResult {
   format: string;
 }
 
+interface ValidationResult {
+  qrData: string;
+  response: {
+    success: boolean;
+    validationResult: 'SUCCESS' | 'DENIED' | 'EXPIRED' | 'INVALID_TIME' | 'CAPACITY_FULL';
+    user?: {
+      name: string;
+      plan: string;
+    };
+    message?: string;
+  };
+  timestamp: Date;
+}
+
 interface AccessResult {
   id: string;
   timestamp: Date;
@@ -34,53 +47,35 @@ export default function ScannerPage() {
   const [stats, setStats] = useState({ successful: 0, denied: 0, total: 0 });
   const [scanMode, setScanMode] = useState<'ENTRY' | 'EXIT'>('ENTRY');
 
-  const { validateQR } = useQRValidation();
-
-  const handleScanResult = async (result: QRScanResult) => {
-    console.log('QR Code scanned:', result.text);
-    
-    try {
-      // Call backend API for validation
-      const validation = await validateQR(result.text, scanMode);
-      
-      const accessResult: AccessResult = {
-        id: result.text,
-        timestamp: result.timestamp,
-        result: validation.validationResult === 'SUCCESS' ? 'success' : 'denied',
-        message: validation.validationResult === 'SUCCESS' 
-          ? `${scanMode.toLowerCase()} granted - Welcome!` 
-          : `${scanMode.toLowerCase()} denied - ${validation.validationResult}`,
-        user: validation.user?.name
-      };
-      
-      setLastScan(accessResult);
-      
-      // Update stats
-      setStats(prev => ({
-        ...prev,
-        total: prev.total + 1,
-        [validation.validationResult === 'SUCCESS' ? 'successful' : 'denied']: 
-          prev[validation.validationResult === 'SUCCESS' ? 'successful' : 'denied'] + 1
-      }));
-      
-    } catch (error) {
-      console.error('QR validation failed:', error);
-      
-      const accessResult: AccessResult = {
-        id: result.text,
-        timestamp: result.timestamp,
-        result: 'denied',
-        message: error instanceof Error ? error.message : 'Validation failed - please try again',
-        user: undefined
-      };
-      
-      setLastScan(accessResult);
-      setStats(prev => ({
-        ...prev,
-        total: prev.total + 1,
-        denied: prev.denied + 1
-      }));
+  const handleScanResult = (scanData: QRScanResult, validation?: ValidationResult) => {
+    if (!validation) {
+      return;
     }
+
+    const { response, timestamp, qrData } = validation;
+    
+    const accessResult: AccessResult = {
+      id: qrData,
+      timestamp: timestamp,
+      result: response.validationResult === 'SUCCESS' ? 'success' : 'denied',
+      message: response.message || (response.validationResult === 'SUCCESS' 
+        ? `${scanMode.toLowerCase()} granted - Welcome!` 
+        : `${scanMode.toLowerCase()} denied - ${response.validationResult}`),
+      user: response.user?.name
+    };
+    
+    setLastScan(accessResult);
+    
+    // Update stats
+    setStats(prev => {
+      const successful = response.validationResult === 'SUCCESS' ? prev.successful + 1 : prev.successful;
+      const denied = response.validationResult !== 'SUCCESS' ? prev.denied + 1 : prev.denied;
+      return {
+        total: prev.total + 1,
+        successful,
+        denied
+      };
+    });
   };
 
   const handleScanError = (error: string) => {
@@ -149,6 +144,7 @@ export default function ScannerPage() {
             continuous={true}
             showControls={true}
             autoStart={false}
+            mode={scanMode}
           />
 
           {/* Last Scan Result */}
