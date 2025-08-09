@@ -142,18 +142,45 @@ export const applyForSubscription = async (req: Request, res: Response): Promise
       where: {
         userId: req.user.id,
         status: {
-          in: ['PENDING', 'ACTIVE']
+          in: ['PENDING', 'ACTIVE', 'IN_GRACE_PERIOD']
         }
       }
     });
 
     if (existingSubscription) {
-      res.status(409).json({
-        success: false,
-        message: 'Active subscription exists',
-        error: 'You already have an active or pending subscription'
-      } as ApiResponse);
-      return;
+      const now = new Date();
+      
+      // For PENDING subscriptions, always block
+      if (existingSubscription.status === 'PENDING') {
+        res.status(409).json({
+          success: false,
+          message: 'Pending subscription exists',
+          error: 'You already have a pending subscription awaiting payment approval'
+        } as ApiResponse);
+        return;
+      }
+      
+      // For ACTIVE or IN_GRACE_PERIOD subscriptions, check if they're actually expired
+      const endDate = new Date(existingSubscription.endDate);
+      const graceEndDate = existingSubscription.graceEndDate ? new Date(existingSubscription.graceEndDate) : null;
+      
+      // Check if subscription is still valid (within end date or grace period)
+      const isStillValid = now <= endDate || (graceEndDate && now <= graceEndDate);
+      
+      if (isStillValid) {
+        res.status(409).json({
+          success: false,
+          message: 'Active subscription exists',
+          error: 'You already have an active subscription that has not expired'
+        } as ApiResponse);
+        return;
+      }
+      
+      // If we reach here, the subscription is expired - update its status
+      await prisma.subscription.update({
+        where: { id: existingSubscription.id },
+        data: { status: 'EXPIRED' }
+      });
     }
 
     // Calculate dates

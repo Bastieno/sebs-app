@@ -90,8 +90,8 @@ export const approvePayment = async (req: Request, res: Response) => {
     const user = await prisma.user.findUnique({ where: { id: updatedSubscription.userId } });
     if (user) {
       const template = templates.subscriptionApproved(user.name, payment.subscription.plan.name);
-      await sendEmail({ to: user.email, subject: template.subject, html: template.html });
-      await sendSms({ to: user.phone, body: template.sms });
+      // await sendEmail({ to: user.email, subject: template.subject, html: template.html });
+      // await sendSms({ to: user.phone, body: template.sms });
     }
 
     return res.status(200).json({
