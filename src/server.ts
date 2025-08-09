@@ -56,6 +56,8 @@ import accessRoutes from './routes/access';
 import notificationRoutes from './routes/notification';
 import userRoutes from './routes/user';
 import superAdminRoutes from './routes/superAdmin';
+import plansRoutes from './routes/plans';
+import subscriptionsRoutes from './routes/subscriptions';
 
 app.use('/api/auth', authRoutes);
 app.use('/api/qr-code', qrCodeRoutes);
@@ -64,11 +66,11 @@ app.use('/api/access', accessRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/super-admin', superAdminRoutes);
+app.use('/api/plans', plansRoutes);
+app.use('/api/subscriptions', subscriptionsRoutes);
 
 // API Documentation Route
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-// app.use('/api/users', require('./routes/users'));
-// app.use('/api/subscriptions', require('./routes/subscriptions'));
 
 // Root endpoint
 app.get('/', (req: Request, res: Response) => {

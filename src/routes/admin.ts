@@ -9,7 +9,7 @@ import {
   getAccessLogs,
   getDashboardAnalytics
 } from '../controllers/adminController';
-import { requireAdmin } from '../middleware/auth';
+import { authenticate, requireAdmin } from '../middleware/auth';
 
 const router = Router();
 
@@ -34,7 +34,7 @@ const router = Router();
  *       '401':
  *         description: Unauthorized
  */
-router.get('/pending-payments', requireAdmin, getPendingPayments);
+router.get('/pending-payments', authenticate, requireAdmin, getPendingPayments);
 
 /**
  * @swagger
@@ -58,7 +58,7 @@ router.get('/pending-payments', requireAdmin, getPendingPayments);
  *       '404':
  *         description: Payment not found
  */
-router.put('/approve-payment/:paymentId', requireAdmin, approvePayment);
+router.put('/approve-payment/:paymentId', authenticate, requireAdmin, approvePayment);
 
 /**
  * @swagger
@@ -82,7 +82,7 @@ router.put('/approve-payment/:paymentId', requireAdmin, approvePayment);
  *       '404':
  *         description: Payment not found
  */
-router.put('/reject-payment/:paymentId', requireAdmin, rejectPayment);
+router.put('/reject-payment/:paymentId', authenticate, requireAdmin, rejectPayment);
 
 /**
  * @swagger
@@ -98,7 +98,7 @@ router.put('/reject-payment/:paymentId', requireAdmin, rejectPayment);
  *       '401':
  *         description: Unauthorized
  */
-router.get('/users', requireAdmin, getAllUsers);
+router.get('/users', authenticate, requireAdmin, getAllUsers);
 
 /**
  * @swagger
@@ -131,7 +131,7 @@ router.get('/users', requireAdmin, getAllUsers);
  *       '404':
  *         description: User not found
  */
-router.put('/user-status/:userId', requireAdmin, updateUserStatus);
+router.put('/user-status/:userId', authenticate, requireAdmin, updateUserStatus);
 
 /**
  * @swagger
@@ -147,7 +147,7 @@ router.put('/user-status/:userId', requireAdmin, updateUserStatus);
  *       '401':
  *         description: Unauthorized
  */
-router.get('/subscriptions', requireAdmin, getAllSubscriptions);
+router.get('/subscriptions', authenticate, requireAdmin, getAllSubscriptions);
 
 /**
  * @swagger
@@ -163,7 +163,7 @@ router.get('/subscriptions', requireAdmin, getAllSubscriptions);
  *       '401':
  *         description: Unauthorized
  */
-router.get('/access-logs', requireAdmin, getAccessLogs);
+router.get('/access-logs', authenticate, requireAdmin, getAccessLogs);
 
 /**
  * @swagger
@@ -179,6 +179,6 @@ router.get('/access-logs', requireAdmin, getAccessLogs);
  *       '401':
  *         description: Unauthorized
  */
-router.get('/analytics', requireAdmin, getDashboardAnalytics);
+router.get('/analytics', authenticate, requireAdmin, getDashboardAnalytics);
 
 export default router;
