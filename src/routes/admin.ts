@@ -7,7 +7,8 @@ import {
   updateUserStatus,
   getAllSubscriptions,
   getAccessLogs,
-  getDashboardAnalytics
+  getDashboardAnalytics,
+  approveSubscriptionDirectly
 } from '../controllers/adminController';
 import { authenticate, requireAdmin } from '../middleware/auth';
 
@@ -180,5 +181,41 @@ router.get('/access-logs', authenticate, requireAdmin, getAccessLogs);
  *         description: Unauthorized
  */
 router.get('/analytics', authenticate, requireAdmin, getDashboardAnalytics);
+
+/**
+ * @swagger
+ * /api/admin/approve-subscription/{subscriptionId}:
+ *   put:
+ *     summary: Approve subscription directly (no receipt required)
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: subscriptionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               adminNotes:
+ *                 type: string
+ *               paymentMethod:
+ *                 type: string
+ *                 enum: [CASH, BANK_TRANSFER, CARD, OTHER]
+ *     responses:
+ *       '200':
+ *         description: Subscription approved successfully
+ *       '401':
+ *         description: Unauthorized
+ *       '404':
+ *         description: Subscription not found
+ */
+router.put('/approve-subscription/:subscriptionId', authenticate, requireAdmin, approveSubscriptionDirectly);
 
 export default router;

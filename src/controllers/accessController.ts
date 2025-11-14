@@ -2,6 +2,9 @@ import { Request, Response } from 'express';
 import { prisma } from '../config/database';
 import { ApiResponse } from '../types';
 
+// Global hub capacity limit
+const GLOBAL_HUB_CAPACITY = 40;
+
 // Helper to check time validity
 const isTimeWithinPlan = (plan: any, currentTime: Date): boolean => {
   if (!plan.timeStart || !plan.timeEnd) return true; // No time restriction
@@ -51,16 +54,27 @@ export const validateQrCode = async (req: Request, res: Response): Promise<any> 
       const endDate = new Date(subscription.endDate);
       const graceEndDate = subscription.graceEndDate ? new Date(subscription.graceEndDate) : null;
 
+      // Get current total occupancy for global capacity check
+      const plans = await prisma.plan.findMany({
+        where: { isActive: true },
+        select: { currentCapacity: true },
+      });
+      const totalCurrentOccupancy = plans.reduce((acc, plan) => acc + plan.currentCapacity, 0);
+
       if (subscription.status !== 'ACTIVE') {
         validationResult = 'DENIED';
       } else if (now > endDate && (!graceEndDate || now > graceEndDate)) {
         validationResult = 'EXPIRED';
       } else if (!isTimeWithinPlan(subscription.plan, now)) {
         validationResult = 'INVALID_TIME';
+      } else if (action === 'ENTRY' && totalCurrentOccupancy >= GLOBAL_HUB_CAPACITY) {
+        // Check global hub capacity first
+        validationResult = 'CAPACITY_FULL';
       } else if (
         subscription.plan.maxCapacity &&
         subscription.plan.currentCapacity >= subscription.plan.maxCapacity
       ) {
+        // Then check plan-specific capacity
         validationResult = 'CAPACITY_FULL';
       } else {
         validationResult = 'SUCCESS';
@@ -97,9 +111,28 @@ export const validateQrCode = async (req: Request, res: Response): Promise<any> 
       await Promise.all([logPromise, capacityPromise]);
     }
 
+    // Generate appropriate message based on action and result
+    let message = '';
+    if (validationResult === 'SUCCESS') {
+      message = action === 'EXIT' 
+        ? `Exit recorded - Goodbye!`
+        : `Access granted - Welcome!`;
+    } else if (validationResult === 'DENIED') {
+      message = action === 'EXIT'
+        ? 'Exit denied - Invalid QR code'
+        : 'Access denied - Invalid QR code';
+    } else if (validationResult === 'EXPIRED') {
+      message = 'Subscription expired';
+    } else if (validationResult === 'INVALID_TIME') {
+      message = 'Access not allowed at this time';
+    } else if (validationResult === 'CAPACITY_FULL') {
+      message = 'Hub at full capacity';
+    }
+
     return res.status(200).json({
       success: true,
       validationResult,
+      message,
       user: subscriptionDetails ? {
         name: subscriptionDetails.user.name,
         plan: subscriptionDetails.plan.name
@@ -139,14 +172,15 @@ export const getCurrentCapacity = async (req: Request, res: Response) => {
       },
     });
 
-    const totalCapacity = plans.reduce((acc, plan) => acc + (plan.maxCapacity || 0), 0);
+    const planBasedCapacity = plans.reduce((acc, plan) => acc + (plan.maxCapacity || 0), 0);
     const totalCurrentOccupancy = plans.reduce((acc, plan) => acc + plan.currentCapacity, 0);
 
     res.status(200).json({
       success: true,
       data: {
-        totalCapacity,
+        totalCapacity: GLOBAL_HUB_CAPACITY,
         totalCurrentOccupancy,
+        planBasedCapacity,
         breakdown: plans,
       },
     });

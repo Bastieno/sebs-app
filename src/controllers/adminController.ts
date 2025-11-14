@@ -254,3 +254,87 @@ export const getDashboardAnalytics = async (req: Request, res: Response) => {
     res.status(500).json({ success: false, message: 'Error fetching analytics' });
   }
 };
+
+// Approve subscription directly without receipt requirement
+export const approveSubscriptionDirectly = async (req: Request, res: Response) => {
+  const { subscriptionId } = req.params;
+  const { adminNotes, paymentMethod } = req.body;
+
+  if (!req.user) {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+
+  try {
+    const subscription = await prisma.subscription.findUnique({
+      where: { id: subscriptionId },
+      include: { 
+        plan: true,
+        user: true
+      }
+    });
+
+    if (!subscription) {
+      return res.status(404).json({
+        success: false,
+        message: 'Subscription not found'
+      } as ApiResponse);
+    }
+
+    if (subscription.status === 'ACTIVE') {
+      return res.status(400).json({
+        success: false,
+        message: 'Subscription is already active'
+      } as ApiResponse);
+    }
+
+    // Use a transaction to ensure atomicity
+    const result = await prisma.$transaction(async (tx) => {
+      // Update subscription to ACTIVE
+      const updated = await tx.subscription.update({
+        where: { id: subscriptionId },
+        data: {
+          status: 'ACTIVE',
+          approvedAt: new Date(),
+          approvedBy: req.user!.id,
+          adminNotes: adminNotes || `Approved directly. Payment method: ${paymentMethod || 'Not specified'}`
+        }
+      });
+
+      // Create a payment record for tracking
+      await tx.paymentReceipt.create({
+        data: {
+          subscriptionId: subscription.id,
+          receiptUrl: 'N/A', // No receipt uploaded
+          amount: subscription.plan.price,
+          status: 'APPROVED',
+          processedAt: new Date(),
+          processedBy: req.user!.id,
+          adminNotes: `Direct approval. Payment method: ${paymentMethod || 'Not specified'}. ${adminNotes || ''}`
+        }
+      });
+
+      return updated;
+    });
+
+    // Send notification
+    const template = templates.subscriptionApproved(
+      subscription.user.name, 
+      subscription.plan.name
+    );
+    // await sendEmail({ to: subscription.user.email, subject: template.subject, html: template.html });
+    // await sendSms({ to: subscription.user.phone, body: template.sms });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Subscription activated successfully',
+      data: result
+    } as ApiResponse);
+  } catch (error) {
+    console.error('Approve subscription error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error approving subscription',
+      error
+    } as ApiResponse);
+  }
+};

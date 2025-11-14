@@ -35,6 +35,8 @@ export default function Dashboard() {
   // Determine system status based on API connectivity and health check
   const systemStatus = (statsError || capacityError || healthError) ? 'offline' : 'online';
   const isLoading = statsLoading || capacityLoading || healthLoading;
+
+  console.log('capacityData', capacityData);
   
   const stats = {
     todayEntries: todaysStats?.totalEntries || 0,

@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Scanner } from '@/components/scanner/Scanner';
-import { capitalize, formatFriendlyTimestamp } from '@/lib/utils';
+import { formatFriendlyTimestamp } from '@/lib/utils';
+import { useScannerStore } from '@/lib/stores/scanner-store';
 import { 
   CheckCircle, 
   XCircle, 
@@ -15,68 +16,31 @@ import {
   ArrowLeft
 } from 'lucide-react';
 
-interface QRScanResult {
-  text: string;
-  timestamp: Date;
-  format: string;
-}
-
-interface ValidationResult {
-  qrData: string;
-  response: {
-    success: boolean;
-    validationResult: 'SUCCESS' | 'DENIED' | 'EXPIRED' | 'INVALID_TIME' | 'CAPACITY_FULL';
-    user?: {
-      name: string;
-      plan: string;
-    };
-    message?: string;
-  };
-  timestamp: Date;
-}
-
-interface AccessResult {
-  id: string;
-  timestamp: Date;
-  result: 'success' | 'denied';
-  message: string;
-  user?: string;
-}
-
 export default function ScannerPage() {
-  const [lastScan, setLastScan] = useState<AccessResult | null>(null);
-  const [stats, setStats] = useState({ successful: 0, denied: 0, total: 0 });
-  const [scanMode, setScanMode] = useState<'ENTRY' | 'EXIT'>('ENTRY');
+  const {
+    lastValidation,
+    scanMode,
+    stats,
+    setScanMode,
+    updateStats,
+  } = useScannerStore();
 
-  const handleScanResult = (scanData: QRScanResult, validation?: ValidationResult) => {
-    if (!validation) {
-      return;
-    }
-
-    const { response, timestamp, qrData } = validation;
-    
-    const accessResult: AccessResult = {
-      id: qrData,
-      timestamp: timestamp,
-      result: response.validationResult === 'SUCCESS' ? 'success' : 'denied',
-      message: response.message || (response.validationResult === 'SUCCESS' 
-        ? `${capitalize(scanMode)} granted - Welcome!` 
-        : `${capitalize(scanMode)} denied - ${response.validationResult}`),
-      user: response.user?.name
-    };
-    
-    setLastScan(accessResult);
-    
-    // Update stats
-    setStats(prev => {
-      const successful = response.validationResult === 'SUCCESS' ? prev.successful + 1 : prev.successful;
-      const denied = response.validationResult !== 'SUCCESS' ? prev.denied + 1 : prev.denied;
-      return {
-        total: prev.total + 1,
-        successful,
-        denied
+  const handleScanResult = (
+    scanData: { text: string; timestamp: Date; format: string },
+    validation?: {
+      qrData: string;
+      response: {
+        success: boolean;
+        validationResult: 'SUCCESS' | 'DENIED' | 'EXPIRED' | 'INVALID_TIME' | 'CAPACITY_FULL';
+        user?: { name: string; plan: string };
+        message?: string;
       };
-    });
+      timestamp: Date;
+    }
+  ) => {
+    if (validation) {
+      updateStats(validation);
+    }
   };
 
   const handleScanError = (error: string) => {
@@ -145,7 +109,6 @@ export default function ScannerPage() {
             continuous={true}
             showControls={true}
             autoStart={false}
-            mode={scanMode}
           />
 
         </div>
@@ -218,15 +181,15 @@ export default function ScannerPage() {
           </Card>
 
           {/* Last Scan Result */}
-          {lastScan && (
+          {lastValidation && (
             <Card className={`border-2 ${
-              lastScan.result === 'success' 
+              lastValidation.response.validationResult === 'SUCCESS' 
                 ? 'border-green-200 bg-green-50' 
                 : 'border-red-200 bg-red-50'
             }`}>
               <CardHeader>
                 <CardTitle className="text-sm flex items-center gap-2">
-                  {lastScan.result === 'success' ? (
+                  {lastValidation.response.validationResult === 'SUCCESS' ? (
                     <CheckCircle className="h-5 w-5 text-green-600" />
                   ) : (
                     <XCircle className="h-5 w-5 text-red-600" />
@@ -236,25 +199,30 @@ export default function ScannerPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3 text-sm">
-                  {lastScan.user && (
+                  {lastValidation.response.user && (
                     <div className="flex items-center justify-between">
                       <span className="text-gray-600">User:</span>
-                      <span className="font-medium">{lastScan.user}</span>
+                      <span className="font-medium">{lastValidation.response.user.name}</span>
                     </div>
                   )}
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600">Status:</span>
-                    <Badge variant={lastScan.result === 'success' ? 'default' : 'destructive'}>
-                      {lastScan.result === 'success' ? 'Success' : 'Denied'}
+                    <Badge variant={lastValidation.response.validationResult === 'SUCCESS' ? 'default' : 'destructive'}>
+                      {lastValidation.response.validationResult === 'SUCCESS' ? 'Success' : 'Denied'}
                     </Badge>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600">Message:</span>
-                    <span className="font-medium text-right">{lastScan.message}</span>
+                    <span className="font-medium text-right">
+                      {lastValidation.response.message || 
+                       (lastValidation.response.validationResult === 'SUCCESS' 
+                         ? (scanMode === 'EXIT' ? 'Exit recorded - Goodbye!' : 'Access granted - Welcome!')
+                         : `${scanMode === 'EXIT' ? 'Exit' : 'Access'} denied - ${lastValidation.response.validationResult}`)}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600">Time:</span>
-                    <span className="font-medium">{formatFriendlyTimestamp(lastScan.timestamp)}</span>
+                    <span className="font-medium">{formatFriendlyTimestamp(lastValidation.timestamp)}</span>
                   </div>
                 </div>
               </CardContent>

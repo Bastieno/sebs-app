@@ -3,7 +3,8 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useCamera } from '@/hooks/useCamera';
 import { useQRScanner } from '@/hooks/useQRScanner';
-import { validateQRCode, ValidationResponse } from '@/lib/api';
+import { validateQRCode } from '@/lib/api';
+import { useScannerStore } from '@/lib/stores/scanner-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +22,7 @@ import {
   Shield
 } from 'lucide-react';
 
+// Types are now imported from the store
 interface QRScanResult {
   text: string;
   timestamp: Date;
@@ -29,7 +31,15 @@ interface QRScanResult {
 
 interface ValidationResult {
   qrData: string;
-  response: ValidationResponse;
+  response: {
+    success: boolean;
+    validationResult: 'SUCCESS' | 'DENIED' | 'EXPIRED' | 'INVALID_TIME' | 'CAPACITY_FULL';
+    user?: {
+      name: string;
+      plan: string;
+    };
+    message?: string;
+  };
   timestamp: Date;
 }
 
@@ -40,7 +50,6 @@ interface ScannerProps {
   className?: string;
   showControls?: boolean;
   autoStart?: boolean;
-  mode?: 'ENTRY' | 'EXIT';
   adminMode?: boolean;
 }
 
@@ -51,14 +60,23 @@ export function Scanner({
   className = '',
   showControls = true,
   autoStart = false,
-  mode = 'ENTRY',
   adminMode = false
 }: ScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isActive, setIsActive] = useState(false);
-  const [lastScanResult, setLastScanResult] = useState<QRScanResult | null>(null);
-  const [lastValidation, setLastValidation] = useState<ValidationResult | null>(null);
-  const [isValidating, setIsValidating] = useState(false);
+  
+  // Use global store for scanner state
+  const {
+    lastScanResult,
+    lastValidation,
+    scanMode,
+    isValidating,
+    setLastScanResult,
+    setLastValidation,
+    setIsValidating,
+    updateStats,
+  } = useScannerStore();
+  
   const lastProcessedQR = useRef<string>('');
   const lastProcessedTime = useRef<number>(0);
   const scannerFunctionsRef = useRef<{
@@ -111,7 +129,7 @@ export function Scanner({
         console.log('No QR token found, skipping validation');
         return null;
       }
-      const response = await validateQRCode(qrToken, mode);
+      const response = await validateQRCode(qrToken, scanMode);
       const validationResult: ValidationResult = {
         qrData,
         response,
@@ -123,9 +141,14 @@ export function Scanner({
       // Show appropriate feedback
       switch (response.validationResult) {
         case 'SUCCESS':
-          toast.success(`Access granted! Welcome ${response.user?.name || 'User'}`, {
-            description: `${response.user?.plan || 'Plan'} • ${mode.toLowerCase()} recorded`
-          });
+          toast.success(
+            scanMode === 'EXIT' 
+              ? `Exit recorded! Goodbye ${response.user?.name || 'User'}`
+              : `Access granted! Welcome ${response.user?.name || 'User'}`, 
+            {
+              description: `${response.user?.plan || 'Plan'} • ${scanMode.toLowerCase()} recorded`
+            }
+          );
           // Stop scanning after successful validation to prevent duplicates
           if (continuous && scannerFunctionsRef.current.stopScanning) {
             scannerFunctionsRef.current.stopScanning();
@@ -177,7 +200,7 @@ export function Scanner({
     } finally {
       setIsValidating(false);
     }
-  }, [mode, isValidating, continuous, isActive, stream, selectedDeviceId]);
+  }, [scanMode, isValidating, continuous, isActive, stream, selectedDeviceId, setIsValidating, setLastValidation]);
 
   // QR Scanner hook
   const {
@@ -434,7 +457,7 @@ export function Scanner({
                 <div className="flex items-center space-x-2">
                   <Shield className="w-4 h-4 text-blue-500" />
                   <Badge variant="outline" className="bg-blue-50">
-                    {adminMode ? 'Admin' : mode} Mode
+                    {adminMode ? 'Admin' : scanMode} Mode
                   </Badge>
                 </div>
                 
@@ -477,7 +500,9 @@ export function Scanner({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-1">
                         <p className="text-sm font-medium text-gray-900">
-                          {lastValidation.response.validationResult === 'SUCCESS' ? 'Access Granted' : 'Access Denied'}
+                          {lastValidation.response.validationResult === 'SUCCESS' 
+                            ? (scanMode === 'EXIT' ? 'Exit Recorded' : 'Access Granted')
+                            : (scanMode === 'EXIT' ? 'Exit Denied' : 'Access Denied')}
                         </p>
                         <Badge 
                           variant={lastValidation.response.validationResult === 'SUCCESS' ? 'default' : 'destructive'}
@@ -498,11 +523,6 @@ export function Scanner({
                         </div>
                       )}
                       
-                      {lastValidation.response.message && (
-                        <p className="text-sm text-gray-700 mt-2">
-                          <span className="font-medium">Message:</span> {lastValidation.response.message}
-                        </p>
-                      )}
                       <p className="text-xs text-gray-500 mt-1">
                         {lastValidation.timestamp.toLocaleTimeString()}
                       </p>

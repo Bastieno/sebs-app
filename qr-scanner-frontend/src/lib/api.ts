@@ -37,10 +37,11 @@ export interface CapacityData {
   data: {
     totalCapacity: number;
     totalCurrentOccupancy: number;
+    planBasedCapacity: number;
     breakdown: Array<{
       id: string;
       name: string;
-      maxCapacity: number;
+      maxCapacity: number | null;
       currentCapacity: number;
     }>;
   };
