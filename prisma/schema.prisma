@@ -61,7 +61,7 @@ model Subscription {
   startDate    DateTime           @map("start_date") @db.Date
   endDate      DateTime           @map("end_date") @db.Date
   graceEndDate DateTime?          @map("grace_end_date") @db.Date
-  qrToken      String             @unique @map("qr_token")
+  accessCode   String             @unique @map("access_code")
   adminNotes   String?            @map("admin_notes") @db.Text
   approvedBy   String?            @map("approved_by")
   approvedAt   DateTime?          @map("approved_at")

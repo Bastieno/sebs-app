@@ -37,6 +37,359 @@ export const getPendingPayments = async (req: Request, res: Response) => {
   }
 };
 
+// Create user manually (Admin only)
+export const createUserManually = async (req: Request, res: Response) => {
+  const { name, email, phone, password } = req.body;
+
+  if (!req.user) {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+
+  if (!name || !email || !phone || !password) {
+    return res.status(400).json({
+      success: false,
+      message: 'All fields are required (name, email, phone, password)'
+    } as ApiResponse);
+  }
+
+  try {
+    // Check if user already exists
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      return res.status(409).json({
+        success: false,
+        message: 'User with this email already exists'
+      } as ApiResponse);
+    }
+
+    const bcrypt = require('bcryptjs');
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email,
+        phone,
+        passwordHash,
+        role: 'USER',
+        isActive: true
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        isActive: true,
+        createdAt: true
+      }
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'User created successfully',
+      data: user
+    } as ApiResponse);
+  } catch (error) {
+    console.error('Create user error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error creating user',
+      error
+    } as ApiResponse);
+  }
+};
+
+// Create and activate subscription in one step (Admin only)
+export const createAndActivateSubscription = async (req: Request, res: Response) => {
+  const { userId, planId, timeSlot, startDate, paymentMethod, adminNotes } = req.body;
+
+  if (!req.user) {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+
+  if (!userId || !planId || !startDate) {
+    return res.status(400).json({
+      success: false,
+      message: 'userId, planId, and startDate are required'
+    } as ApiResponse);
+  }
+
+  try {
+    // Verify user exists
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      } as ApiResponse);
+    }
+
+    // Verify plan exists
+    const plan = await prisma.plan.findUnique({ where: { id: planId, isActive: true } });
+    if (!plan) {
+      return res.status(404).json({
+        success: false,
+        message: 'Plan not found or inactive'
+      } as ApiResponse);
+    }
+
+    // Helper functions
+    const calculateEndDate = (startDate: Date, durationType: string): Date => {
+      const endDate = new Date(startDate);
+      switch (durationType) {
+        case 'DAILY':
+          endDate.setDate(endDate.getDate() + 1);
+          break;
+        case 'WEEKLY':
+          endDate.setDate(endDate.getDate() + 7);
+          break;
+        case 'MONTHLY':
+          endDate.setMonth(endDate.getMonth() + 1);
+          break;
+        default:
+          endDate.setDate(endDate.getDate() + 1);
+      }
+      return endDate;
+    };
+
+    const calculateGraceEndDate = (endDate: Date, durationType: string): Date | null => {
+      if (durationType !== 'MONTHLY') return null;
+      const graceEndDate = new Date(endDate);
+      graceEndDate.setDate(graceEndDate.getDate() + 2);
+      return graceEndDate;
+    };
+
+    const generateAccessCode = (): string => {
+      return Math.floor(100000 + Math.random() * 900000).toString();
+    };
+
+    const parsedStartDate = new Date(startDate);
+    const endDate = calculateEndDate(parsedStartDate, plan.durationType);
+    const graceEndDate = calculateGraceEndDate(endDate, plan.durationType);
+
+    // Generate unique access code
+    let accessCode = generateAccessCode();
+    let existingCode = await prisma.subscription.findUnique({ where: { accessCode } });
+    while (existingCode) {
+      accessCode = generateAccessCode();
+      existingCode = await prisma.subscription.findUnique({ where: { accessCode } });
+    }
+
+    // Create subscription and payment record in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      const subscription = await tx.subscription.create({
+        data: {
+          userId,
+          planId,
+          timeSlot: timeSlot || (plan.durationType === 'MONTHLY' && plan.name.includes('Premium') ? 'ALL' : null),
+          startDate: parsedStartDate,
+          endDate,
+          graceEndDate,
+          accessCode,
+          status: 'ACTIVE',
+          approvedAt: new Date(),
+          approvedBy: req.user!.id,
+          adminNotes: adminNotes || `Created and activated by admin. Payment method: ${paymentMethod || 'Not specified'}`
+        },
+        include: {
+          user: {
+            select: { id: true, name: true, email: true, phone: true }
+          },
+          plan: true
+        }
+      });
+
+      // Create payment record
+      await tx.paymentReceipt.create({
+        data: {
+          subscriptionId: subscription.id,
+          receiptUrl: 'N/A',
+          amount: plan.price,
+          status: 'APPROVED',
+          processedAt: new Date(),
+          processedBy: req.user!.id,
+          adminNotes: `Direct activation by admin. Payment method: ${paymentMethod || 'Not specified'}. ${adminNotes || ''}`
+        }
+      });
+
+      return subscription;
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Subscription created and activated successfully',
+      data: {
+        subscription: result,
+        accessCode: result.accessCode
+      }
+    } as ApiResponse);
+  } catch (error) {
+    console.error('Create subscription error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error creating subscription',
+      error
+    } as ApiResponse);
+  }
+};
+
+// Get user and plan info by access code
+export const getUserByAccessCode = async (req: Request, res: Response) => {
+  const { accessCode } = req.params;
+
+  if (!req.user) {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+
+  if (!accessCode) {
+    return res.status(400).json({
+      success: false,
+      message: 'Access code is required'
+    } as ApiResponse);
+  }
+
+  try {
+    const subscription = await prisma.subscription.findUnique({
+      where: { accessCode },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            role: true,
+            isActive: true,
+            createdAt: true
+          }
+        },
+        plan: true,
+        paymentReceipts: {
+          select: {
+            amount: true,
+            status: true,
+            uploadedAt: true,
+            processedAt: true,
+            adminNotes: true
+          },
+          orderBy: { uploadedAt: 'desc' },
+          take: 1
+        }
+      }
+    });
+
+    if (!subscription) {
+      return res.status(404).json({
+        success: false,
+        message: 'No subscription found with this access code'
+      } as ApiResponse);
+    }
+
+    // Check subscription status
+    const now = new Date();
+    const endDate = new Date(subscription.endDate);
+    const graceEndDate = subscription.graceEndDate ? new Date(subscription.graceEndDate) : null;
+    const isExpired = now > endDate && (!graceEndDate || now > graceEndDate);
+    const daysRemaining = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+    return res.status(200).json({
+      success: true,
+      message: 'Subscription details retrieved successfully',
+      data: {
+        user: subscription.user,
+        subscription: {
+          id: subscription.id,
+          status: subscription.status,
+          startDate: subscription.startDate,
+          endDate: subscription.endDate,
+          graceEndDate: subscription.graceEndDate,
+          timeSlot: subscription.timeSlot,
+          accessCode: subscription.accessCode,
+          isExpired,
+          daysRemaining: isExpired ? 0 : daysRemaining,
+          createdAt: subscription.createdAt
+        },
+        plan: subscription.plan,
+        lastPayment: subscription.paymentReceipts[0] || null
+      }
+    } as ApiResponse);
+  } catch (error) {
+    console.error('Get user by access code error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error retrieving subscription details',
+      error
+    } as ApiResponse);
+  }
+};
+
+// Get all notifications for admin dashboard
+export const getNotifications = async (req: Request, res: Response) => {
+  if (!req.user) {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+
+  try {
+    const notifications = await prisma.notification.findMany({
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50 // Limit to last 50 notifications
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Notifications retrieved successfully',
+      data: notifications
+    } as ApiResponse);
+  } catch (error) {
+    console.error('Get notifications error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error retrieving notifications',
+      error
+    } as ApiResponse);
+  }
+};
+
+// Mark notification as read
+export const markNotificationAsRead = async (req: Request, res: Response) => {
+  const { notificationId } = req.params;
+
+  if (!req.user) {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+
+  try {
+    const notification = await prisma.notification.update({
+      where: { id: notificationId },
+      data: { isRead: true }
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Notification marked as read',
+      data: notification
+    } as ApiResponse);
+  } catch (error) {
+    console.error('Mark notification as read error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error marking notification as read',
+      error
+    } as ApiResponse);
+  }
+};
+
 // Approve a payment and activate the subscription
 export const approvePayment = async (req: Request, res: Response) => {
   const { paymentId } = req.params;

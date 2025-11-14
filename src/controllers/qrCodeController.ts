@@ -18,14 +18,14 @@ export const generateQRCode = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Subscription not found' });
     }
 
-    const qrToken = `${subscription.id}-${Date.now()}`;
+    const accessCode = `${subscription.id}-${Date.now()}`;
 
     await prisma.subscription.update({
       where: { id: subscriptionId },
-      data: { qrToken },
+      data: { accessCode },
     });
 
-    const qrCodeImage = await qr.toDataURL(qrToken);
+    const qrCodeImage = await qr.toDataURL(accessCode);
 
     return res.status(201).json({ qrCode: qrCodeImage });
   } catch (error) {
@@ -42,7 +42,7 @@ export const validateQRCode = async (req: Request, res: Response) => {
     }
 
     const subscription = await prisma.subscription.findUnique({
-      where: { qrToken: qrCodeData },
+      where: { accessCode: qrCodeData },
       include: { plan: true, user: true },
     });
 

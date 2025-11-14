@@ -1,5 +1,5 @@
 import nodemailer from 'nodemailer';
-// import Twilio from 'twilio'; // Or your preferred SMS provider
+import { prisma } from '../config/database';
 
 // --- Email Configuration ---
 const transporter = nodemailer.createTransport({
@@ -11,9 +11,6 @@ const transporter = nodemailer.createTransport({
     pass: process.env.SMTP_PASS,
   },
 });
-
-// --- SMS Configuration ---
-// const twilioClient = Twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH_TOKEN);
 
 interface EmailOptions {
   to: string;
@@ -41,18 +38,30 @@ interface SmsOptions {
 }
 
 export const sendSms = async (options: SmsOptions) => {
+  console.log(`[SMS STUB] To: ${options.to}, Body: ${options.body}`);
+  return { sid: 'sms_stub_' + Date.now() };
+};
+
+// In-app notification
+interface InAppNotificationOptions {
+  userId: string;
+  message: string;
+}
+
+export const sendInAppNotification = async (options: InAppNotificationOptions) => {
   try {
-    // const message = await twilioClient.messages.create({
-    //   from: process.env.TWILIO_PHONE_NUMBER,
-    //   ...options,
-    // });
-    // console.log('SMS sent: %s', message.sid);
-    // return message;
-    console.log(`[SMS STUB] To: ${options.to}, Body: ${options.body}`);
-    return { sid: 'sms_stub_' + Date.now() };
+    const notification = await prisma.notification.create({
+      data: {
+        userId: options.userId,
+        message: options.message,
+        isRead: false,
+      },
+    });
+    console.log('In-app notification created for user:', options.userId);
+    return notification;
   } catch (error) {
-    console.error('Error sending SMS:', error);
-    throw new Error('Failed to send SMS');
+    console.error('Error creating in-app notification:', error);
+    throw new Error('Failed to create in-app notification');
   }
 };
 
@@ -81,5 +90,17 @@ export const templates = {
     subject: 'Your Subscription is in a Grace Period',
     html: `<p>Hi ${userName},</p><p>Your <strong>${planName}</strong> subscription has expired. You are currently in a 2-day grace period, which ends on ${graceEndDate}. Please renew your subscription immediately to avoid service interruption.</p>`,
     sms: `Hi ${userName}, your ${planName} subscription has expired. Your grace period ends on ${graceEndDate}. Please renew now.`
+  }),
+
+  subscriptionExpiring15Min: (userName: string, planName: string, accessCode: string) => ({
+    inApp: `Hi ${userName}, your ${planName} subscription will expire in 15 minutes. Access Code: ${accessCode}. Please renew to continue using Seb's Hub.`
+  }),
+
+  subscriptionExpiringSoon: (userName: string, planName: string, expiryDate: string) => ({
+    inApp: `Hi ${userName}, your ${planName} subscription will expire on ${expiryDate}. Please renew to continue using Seb's Hub.`
+  }),
+
+  subscriptionExpired: (userName: string, planName: string) => ({
+    inApp: `Hi ${userName}, your ${planName} subscription has now expired. Please visit Seb's Hub to renew your subscription. Thank you!`
   }),
 };

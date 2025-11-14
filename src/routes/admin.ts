@@ -8,7 +8,12 @@ import {
   getAllSubscriptions,
   getAccessLogs,
   getDashboardAnalytics,
-  approveSubscriptionDirectly
+  approveSubscriptionDirectly,
+  createUserManually,
+  createAndActivateSubscription,
+  getUserByAccessCode,
+  getNotifications,
+  markNotificationAsRead
 } from '../controllers/adminController';
 import { authenticate, requireAdmin } from '../middleware/auth';
 
@@ -217,5 +222,148 @@ router.get('/analytics', authenticate, requireAdmin, getDashboardAnalytics);
  *         description: Subscription not found
  */
 router.put('/approve-subscription/:subscriptionId', authenticate, requireAdmin, approveSubscriptionDirectly);
+
+/**
+ * @swagger
+ * /api/admin/create-user:
+ *   post:
+ *     summary: Create a user manually (Admin only)
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - email
+ *               - phone
+ *               - password
+ *             properties:
+ *               name:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               phone:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       '201':
+ *         description: User created successfully
+ *       '401':
+ *         description: Unauthorized
+ *       '409':
+ *         description: User already exists
+ */
+router.post('/create-user', authenticate, requireAdmin, createUserManually);
+
+/**
+ * @swagger
+ * /api/admin/create-subscription:
+ *   post:
+ *     summary: Create and activate subscription in one step (Admin only)
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userId
+ *               - planId
+ *               - startDate
+ *             properties:
+ *               userId:
+ *                 type: string
+ *               planId:
+ *                 type: string
+ *               timeSlot:
+ *                 type: string
+ *                 enum: [MORNING, AFTERNOON, NIGHT, ALL]
+ *               startDate:
+ *                 type: string
+ *                 format: date
+ *               paymentMethod:
+ *                 type: string
+ *               adminNotes:
+ *                 type: string
+ *     responses:
+ *       '201':
+ *         description: Subscription created and activated successfully
+ *       '401':
+ *         description: Unauthorized
+ *       '404':
+ *         description: User or plan not found
+ */
+router.post('/create-subscription', authenticate, requireAdmin, createAndActivateSubscription);
+
+/**
+ * @swagger
+ * /api/admin/user-by-access-code/{accessCode}:
+ *   get:
+ *     summary: Get user and plan info by access code
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: accessCode
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: Subscription details retrieved successfully
+ *       '401':
+ *         description: Unauthorized
+ *       '404':
+ *         description: No subscription found with this access code
+ */
+router.get('/user-by-access-code/:accessCode', authenticate, requireAdmin, getUserByAccessCode);
+
+/**
+ * @swagger
+ * /api/admin/notifications:
+ *   get:
+ *     summary: Get all notifications
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       '200':
+ *         description: Notifications retrieved successfully
+ *       '401':
+ *         description: Unauthorized
+ */
+router.get('/notifications', authenticate, requireAdmin, getNotifications);
+
+/**
+ * @swagger
+ * /api/admin/notifications/{notificationId}/read:
+ *   put:
+ *     summary: Mark notification as read
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: notificationId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: Notification marked as read
+ *       '401':
+ *         description: Unauthorized
+ */
+router.put('/notifications/:notificationId/read', authenticate, requireAdmin, markNotificationAsRead);
 
 export default router;

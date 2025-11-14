@@ -192,21 +192,21 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Scanner Tools</CardTitle>
+            <CardTitle>Admin Tools</CardTitle>
             <CardDescription>
-              Advanced scanner features and admin tools
+              Manage users and subscriptions
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
-            <Link href="/scanner">
+            <Link href="/admin">
               <Button className="w-full justify-between">
-                Open Scanner
+                Admin Dashboard
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
-            <Link href="/scanner/admin">
+            <Link href="/access-logs">
               <Button variant="outline" className="w-full justify-between">
-                Admin Scanner
+                View All Logs
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>

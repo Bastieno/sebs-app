@@ -6,13 +6,15 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { 
   LayoutDashboard, 
-  ScanLine,
+  Shield,
   History,
   Users,
   Menu,
   X,
-  Settings
+  LogOut,
+  User as UserIcon
 } from 'lucide-react';
+import { useAuth } from '@/lib/auth-context';
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -21,6 +23,24 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { user, logout, loading } = useAuth();
+
+  // Don't show sidebar on login page
+  if (pathname === '/login') {
+    return <>{children}</>;
+  }
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   const navigation = [
     {
@@ -30,10 +50,10 @@ export function AppLayout({ children }: AppLayoutProps) {
       current: pathname === '/',
     },
     {
-      name: 'QR Scanner',
-      href: '/scanner',
-      icon: ScanLine,
-      current: pathname === '/scanner',
+      name: 'Admin Panel',
+      href: '/admin',
+      icon: Shield,
+      current: pathname === '/admin',
     },
     {
       name: 'Access Logs',
@@ -46,12 +66,6 @@ export function AppLayout({ children }: AppLayoutProps) {
       href: '/capacity',
       icon: Users,
       current: pathname === '/capacity',
-    },
-    {
-      name: 'Admin Scanner',
-      href: '/scanner/admin',
-      icon: Settings,
-      current: pathname === '/scanner/admin',
     },
   ];
 
@@ -85,7 +99,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                 href="/"
                 className="text-lg font-semibold text-gray-900 hover:text-gray-700"
               >
-                Seb&apos;s Hub Scanner
+                Seb&apos;s Hub Admin
               </Link>
               <Button
                 variant="ghost"
@@ -119,18 +133,31 @@ export function AppLayout({ children }: AppLayoutProps) {
               })}
             </nav>
 
-            {/* Status Information */}
-            <div className="p-4 border-t">
-              <div className="text-sm text-gray-600">
-                <div className="flex items-center justify-between">
-                  <span>Status:</span>
-                  <span className="text-green-600 font-medium">Online</span>
+            {/* User Information & Logout */}
+            <div className="p-4 border-t space-y-3">
+              {user && (
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <UserIcon className="h-4 w-4 text-gray-600" />
+                    <span className="text-sm font-medium text-gray-900">{user.name}</span>
+                  </div>
+                  <p className="text-xs text-gray-600">{user.email}</p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
+                      {user.role}
+                    </span>
+                    <span className="text-xs text-green-600">● Online</span>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between mt-1">
-                  <span>Mode:</span>
-                  <span className="text-blue-600 font-medium">Scanner Ready</span>
-                </div>
-              </div>
+              )}
+              <Button
+                variant="outline"
+                className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
+                onClick={logout}
+              >
+                <LogOut className="h-4 w-4 mr-2" />
+                Logout
+              </Button>
             </div>
           </div>
         </div>

@@ -11,6 +11,7 @@
     "clean": "rm -rf dist",
     "seed": "ts-node prisma/seed.ts",
     "check-expirations": "ts-node src/scripts/checkExpirations.ts",
+    "check-expiring-subscriptions": "ts-node src/scripts/checkExpiringSubscriptions.ts",
     "test": "jest"
   },
   "keywords": [],

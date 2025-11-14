@@ -165,3 +165,114 @@ export const API_CONFIG = {
   retries: 3,
   retryDelay: 1000, // 1 second
 };
+
+// Notification types
+export interface Notification {
+  id: string;
+  userId: string;
+  type: 'EXPIRING_SOON' | 'EXPIRED' | 'PAYMENT_RECEIVED' | 'GENERAL';
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+  user?: {
+    name: string;
+    email: string;
+  };
+}
+
+// User response type
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: 'USER' | 'ADMIN';
+  createdAt: string;
+}
+
+// Subscription response type
+export interface Subscription {
+  id: string;
+  userId: string;
+  planId: string;
+  accessCode: string;
+  startDate: string;
+  endDate: string;
+  status: 'ACTIVE' | 'EXPIRED' | 'PENDING';
+  user: User;
+  plan: {
+    id: string;
+    name: string;
+    price: number;
+  };
+}
+
+// Lookup response type
+export interface LookupResult {
+  subscription: Subscription;
+  user: User;
+}
+
+// Get all notifications
+export async function getNotifications(): Promise<{ success: boolean; data: Notification[] }> {
+  return apiCall<{ success: boolean; data: Notification[] }>('/api/admin/notifications');
+}
+
+// Mark notification as read
+export async function markNotificationAsRead(notificationId: string): Promise<{ success: boolean; message: string }> {
+  return apiCall<{ success: boolean; message: string }>(`/api/admin/notifications/${notificationId}/read`, {
+    method: 'PUT',
+  });
+}
+
+// Admin: Create user manually
+export async function createUserManually(userData: {
+  name: string;
+  email: string;
+  phone: string;
+  password: string;
+}): Promise<{ success: boolean; data: User }> {
+  return apiCall<{ success: boolean; data: User }>('/api/admin/create-user', {
+    method: 'POST',
+    body: JSON.stringify(userData),
+  });
+}
+
+// Admin: Create and activate subscription
+export async function createAndActivateSubscription(subscriptionData: {
+  userId: string;
+  planId: string;
+}): Promise<{ success: boolean; data: Subscription }> {
+  return apiCall<{ success: boolean; data: Subscription }>('/api/admin/create-subscription', {
+    method: 'POST',
+    body: JSON.stringify(subscriptionData),
+  });
+}
+
+// Admin: Get user by access code
+export async function getUserByAccessCode(accessCode: string): Promise<{ success: boolean; data: LookupResult }> {
+  return apiCall<{ success: boolean; data: LookupResult }>(`/api/admin/user-by-access-code/${accessCode}`);
+}
+
+// Auth: Login
+export async function login(credentials: {
+  email: string;
+  password: string;
+}): Promise<{ success: boolean; data: { token: string; user: User } }> {
+  return apiCall<{ success: boolean; data: { token: string; user: User } }>('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify(credentials),
+  });
+}
+
+// Auth: Get current user profile
+export async function getProfile(): Promise<{ success: boolean; data: User }> {
+  return apiCall<{ success: boolean; data: User }>('/api/auth/profile');
+}
+
+// Auth: Logout
+export async function logout(): Promise<{ success: boolean; message: string }> {
+  return apiCall<{ success: boolean; message: string }>('/api/auth/logout', {
+    method: 'POST',
+  });
+}

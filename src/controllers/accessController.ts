@@ -31,10 +31,10 @@ const isTimeWithinPlan = (plan: any, currentTime: Date): boolean => {
 };
 
 export const validateQrCode = async (req: Request, res: Response): Promise<any> => {
-  const { qrToken, action = 'ENTRY' } = req.body;
+  const { accessCode, action = 'ENTRY' } = req.body;
 
-  if (!qrToken) {
-    return res.status(400).json({ success: false, message: 'QR token is required' });
+  if (!accessCode) {
+    return res.status(400).json({ success: false, message: 'Access code is required' });
   }
 
   let validationResult: any = 'DENIED';
@@ -42,7 +42,7 @@ export const validateQrCode = async (req: Request, res: Response): Promise<any> 
 
   try {
     const subscription = await prisma.subscription.findUnique({
-      where: { qrToken },
+      where: { accessCode },
       include: { user: true, plan: true }
     });
 
@@ -119,8 +119,8 @@ export const validateQrCode = async (req: Request, res: Response): Promise<any> 
         : `Access granted - Welcome!`;
     } else if (validationResult === 'DENIED') {
       message = action === 'EXIT'
-        ? 'Exit denied - Invalid QR code'
-        : 'Access denied - Invalid QR code';
+        ? 'Exit denied - Invalid access code'
+        : 'Access denied - Invalid access code';
     } else if (validationResult === 'EXPIRED') {
       message = 'Subscription expired';
     } else if (validationResult === 'INVALID_TIME') {
@@ -140,7 +140,7 @@ export const validateQrCode = async (req: Request, res: Response): Promise<any> 
     });
 
   } catch (error) {
-    return res.status(500).json({ success: false, message: 'Error validating QR code' });
+    return res.status(500).json({ success: false, message: 'Error validating access code' });
   }
 };
 

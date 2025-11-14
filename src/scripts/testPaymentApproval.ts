@@ -65,6 +65,9 @@ async function testPaymentApprovalWorkflow() {
       console.log('✅ User already has a subscription');
       subscription = existingSubscription;
     } else {
+      // Generate 6-digit access code
+      const accessCode = Math.floor(100000 + Math.random() * 900000).toString();
+      
       subscription = await prisma.subscription.create({
         data: {
           userId: testUser.id,
@@ -73,7 +76,7 @@ async function testPaymentApprovalWorkflow() {
           startDate: new Date(),
           endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
           graceEndDate: new Date(Date.now() + 37 * 24 * 60 * 60 * 1000), // 37 days from now
-          qrToken: `QR-${testUser.id}-${Date.now()}`
+          accessCode: accessCode
         }
       });
       console.log('✅ Subscription created');

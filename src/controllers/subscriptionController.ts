@@ -43,28 +43,9 @@ const calculateGraceEndDate = (endDate: Date, durationType: string): Date | null
   return graceEndDate;
 };
 
-// Helper function to generate QR code
-const generateQRCode = async (qrToken: string): Promise<string> => {
-  try {
-    const qrData = {
-      token: qrToken,
-      timestamp: new Date().toISOString(),
-      type: 'access'
-    };
-    
-    const qrCodeDataURL = await QRCode.toDataURL(JSON.stringify(qrData), {
-      width: parseInt(process.env.QR_CODE_SIZE || '200', 10),
-      margin: 2,
-      color: {
-        dark: '#000000',
-        light: '#FFFFFF'
-      }
-    });
-    
-    return qrCodeDataURL;
-  } catch (error) {
-    throw new Error('Failed to generate QR code');
-  }
+// Helper function to generate 6-digit access code
+const generateAccessCode = (): string => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
 export const applyForSubscription = async (req: Request, res: Response): Promise<void> => {
@@ -187,8 +168,14 @@ export const applyForSubscription = async (req: Request, res: Response): Promise
     const endDate = calculateEndDate(parsedStartDate, plan.durationType);
     const graceEndDate = calculateGraceEndDate(endDate, plan.durationType);
 
-    // Generate unique QR token
-    const qrToken = uuidv4();
+    // Generate unique 6-digit access code
+    let accessCode = generateAccessCode();
+    // Ensure uniqueness
+    let existingCode = await prisma.subscription.findUnique({ where: { accessCode } });
+    while (existingCode) {
+      accessCode = generateAccessCode();
+      existingCode = await prisma.subscription.findUnique({ where: { accessCode } });
+    }
 
     // Create subscription
     const subscription = await prisma.subscription.create({
@@ -199,7 +186,7 @@ export const applyForSubscription = async (req: Request, res: Response): Promise
         startDate: parsedStartDate,
         endDate: endDate,
         graceEndDate: graceEndDate,
-        qrToken: qrToken,
+        accessCode: accessCode,
         status: 'PENDING'
       },
       include: {
@@ -458,14 +445,11 @@ export const getSubscriptionQRCode = async (req: Request, res: Response): Promis
       return;
     }
 
-    // Generate QR code
-    const qrCodeDataURL = await generateQRCode(subscription.qrToken);
-
     res.status(200).json({
       success: true,
-      message: 'QR code generated successfully',
+      message: 'Access code retrieved successfully',
       data: {
-        qrCode: qrCodeDataURL,
+        accessCode: subscription.accessCode,
         subscription: {
           id: subscription.id,
           status: subscription.status,
@@ -578,7 +562,13 @@ export const renewSubscription = async (req: Request, res: Response): Promise<vo
     const newStartDate = new Date();
     const newEndDate = calculateEndDate(newStartDate, existingSubscription.plan.durationType);
     const newGraceEndDate = calculateGraceEndDate(newEndDate, existingSubscription.plan.durationType);
-    const newQrToken = uuidv4();
+    // Generate unique 6-digit access code
+    let newAccessCode = generateAccessCode();
+    let existingCode = await prisma.subscription.findUnique({ where: { accessCode: newAccessCode } });
+    while (existingCode) {
+      newAccessCode = generateAccessCode();
+      existingCode = await prisma.subscription.findUnique({ where: { accessCode: newAccessCode } });
+    }
 
     const newSubscription = await prisma.subscription.create({
       data: {
@@ -588,7 +578,7 @@ export const renewSubscription = async (req: Request, res: Response): Promise<vo
         startDate: newStartDate,
         endDate: newEndDate,
         graceEndDate: newGraceEndDate,
-        qrToken: newQrToken,
+        accessCode: newAccessCode,
         status: 'PENDING'
       },
       include: { plan: true }
