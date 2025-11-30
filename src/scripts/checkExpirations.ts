@@ -49,12 +49,10 @@ const handleExpiredSubscriptions = async () => {
   console.log('Handling subscriptions that have passed their end date...');
   const now = new Date();
 
-  const newlyExpired = await prisma.subscription.findMany({
+  // Get all active subscriptions
+  const activeSubscriptions = await prisma.subscription.findMany({
     where: {
       status: 'ACTIVE',
-      endDate: {
-        lt: now,
-      },
     },
     include: {
       user: true,
@@ -62,11 +60,27 @@ const handleExpiredSubscriptions = async () => {
     },
   });
 
+  const newlyExpired = activeSubscriptions.filter(sub => {
+    // For custom plans, check plan's endDateTime
+    if (sub.plan.isCustom && sub.plan.endDateTime) {
+      return new Date(sub.plan.endDateTime) < now;
+    }
+    // For system plans, check subscription's endDate
+    return sub.endDate < now;
+  });
+
   if (newlyExpired.length > 0) {
     console.log(`Found ${newlyExpired.length} newly expired subscriptions.`);
     for (const sub of newlyExpired) {
-      if (sub.plan.durationType === 'MONTHLY' && sub.graceEndDate && sub.graceEndDate > now) {
-        // --- Move to Grace Period ---
+      // Custom plans don't have grace periods - expire immediately
+      if (sub.plan.isCustom) {
+        await prisma.subscription.update({
+          where: { id: sub.id },
+          data: { status: 'EXPIRED' },
+        });
+        console.log(`Custom plan subscription ${sub.id} has been marked as EXPIRED.`);
+      } else if (sub.plan.durationType === 'MONTHLY' && sub.graceEndDate && sub.graceEndDate > now) {
+        // --- System plan: Move to Grace Period ---
         await prisma.subscription.update({
           where: { id: sub.id },
           data: { status: 'IN_GRACE_PERIOD' },
@@ -80,7 +94,7 @@ const handleExpiredSubscriptions = async () => {
 
         console.log(`Subscription ${sub.id} moved to IN_GRACE_PERIOD.`);
       } else {
-        // --- Expire Immediately ---
+        // --- System plan: Expire Immediately ---
         await prisma.subscription.update({
           where: { id: sub.id },
           data: { status: 'EXPIRED' },

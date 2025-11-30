@@ -7,6 +7,14 @@ const GLOBAL_HUB_CAPACITY = 40;
 
 // Helper to check time validity
 const isTimeWithinPlan = (plan: any, currentTime: Date): boolean => {
+  // Custom plans use datetime ranges instead of daily time slots
+  if (plan.isCustom && plan.startDateTime && plan.endDateTime) {
+    const startDateTime = new Date(plan.startDateTime);
+    const endDateTime = new Date(plan.endDateTime);
+    return currentTime >= startDateTime && currentTime <= endDateTime;
+  }
+  
+  // System plans use daily recurring time slots
   if (!plan.timeStart || !plan.timeEnd) return true; // No time restriction
 
   const formatTime = (timeStr: string) => {
@@ -51,8 +59,17 @@ export const validateQrCode = async (req: Request, res: Response): Promise<any> 
     } else {
       subscriptionDetails = subscription;
       const now = new Date();
-      const endDate = new Date(subscription.endDate);
-      const graceEndDate = subscription.graceEndDate ? new Date(subscription.graceEndDate) : null;
+      
+      // For custom plans, use plan's endDateTime; for system plans, use subscription's endDate
+      let isExpired: boolean;
+      if (subscription.plan.isCustom && subscription.plan.endDateTime) {
+        const endDateTime = new Date(subscription.plan.endDateTime);
+        isExpired = now > endDateTime;
+      } else {
+        const endDate = new Date(subscription.endDate);
+        const graceEndDate = subscription.graceEndDate ? new Date(subscription.graceEndDate) : null;
+        isExpired = now > endDate && (!graceEndDate || now > graceEndDate);
+      }
 
       // Get current total occupancy for global capacity check
       const plans = await prisma.plan.findMany({
@@ -63,7 +80,7 @@ export const validateQrCode = async (req: Request, res: Response): Promise<any> 
 
       if (subscription.status !== 'ACTIVE') {
         validationResult = 'DENIED';
-      } else if (now > endDate && (!graceEndDate || now > graceEndDate)) {
+      } else if (isExpired) {
         validationResult = 'EXPIRED';
       } else if (!isTimeWithinPlan(subscription.plan, now)) {
         validationResult = 'INVALID_TIME';

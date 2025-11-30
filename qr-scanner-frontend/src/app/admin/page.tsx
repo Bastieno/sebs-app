@@ -6,14 +6,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { UserPlus, FileText, Search, CheckCircle, AlertCircle, Bell } from 'lucide-react';
+import { UserPlus, FileText, Search, CheckCircle, AlertCircle, Bell, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import { getNotifications, markNotificationAsRead, Notification } from '@/lib/api';
+import ManagePlans from '@/components/admin/ManagePlans';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
 
 export default function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<'create-user' | 'create-subscription' | 'lookup' | 'notifications'>('create-user');
+  const [activeTab, setActiveTab] = useState<'create-user' | 'create-subscription' | 'lookup' | 'notifications' | 'manage-plans'>('create-user');
   const [loading, setLoading] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notificationLoading, setNotificationLoading] = useState(false);
@@ -22,8 +23,7 @@ export default function AdminDashboard() {
   const [userData, setUserData] = useState({
     name: '',
     email: '',
-    phone: '',
-    password: ''
+    phone: ''
   });
 
   // Subscription Creation State
@@ -46,14 +46,86 @@ export default function AdminDashboard() {
       accessCode: string; 
       startDate: string; 
       endDate: string; 
+      timeSlot: string | null;
+      createdAt: string;
       isExpired: boolean; 
       daysRemaining: number 
     };
-    plan: { name: string; price: number };
+    plan: { 
+      name: string; 
+      price: number; 
+      isCustom?: boolean;
+      startDateTime?: string;
+      endDateTime?: string;
+    };
   } | null>(null);
 
+  // Helper function to get expected start/end times based on timeSlot
+  const getExpectedTimes = (timeSlot: string | null) => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const day = now.getDate();
+    
+    switch (timeSlot) {
+      case 'MORNING':
+        return {
+          start: new Date(year, month, day, 8, 0, 0, 0),
+          end: new Date(year, month, day, 12, 0, 0, 0)
+        };
+      case 'AFTERNOON':
+        return {
+          start: new Date(year, month, day, 12, 0, 0, 0),
+          end: new Date(year, month, day, 17, 0, 0, 0)
+        };
+      case 'NIGHT':
+        return {
+          start: new Date(year, month, day, 17, 0, 0, 0),
+          end: new Date(year, month, day, 23, 59, 59, 999)
+        };
+      default:
+        // All day
+        return {
+          start: new Date(year, month, day, 0, 0, 0, 0),
+          end: new Date(year, month, day, 23, 59, 59, 999)
+        };
+    }
+  };
+
+  // Helper function to format time remaining
+  const formatTimeRemaining = (endTime: Date) => {
+    const now = new Date();
+    const diff = endTime.getTime() - now.getTime();
+    
+    if (diff <= 0) {
+      return 'Expired';
+    }
+    
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+    
+    const parts = [];
+    if (days > 0) parts.push(`${days} day${days !== 1 ? 's' : ''}`);
+    if (hours > 0) parts.push(`${hours} hr${hours !== 1 ? 's' : ''}`);
+    parts.push(`${minutes} min${minutes !== 1 ? 's' : ''}`);
+    parts.push(`${seconds} sec${seconds !== 1 ? 's' : ''}`);
+    
+    return parts.join(' ');
+  };
+
+  // Helper function to format time
+  const formatTime = (date: Date) => {
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
   // Plans State
-  const [plans, setPlans] = useState<Array<{ id: string; name: string; price: number }>>([]);
+  const [plans, setPlans] = useState<Array<{ id: string; name: string; price: number; isCustom?: boolean }>>([]);
   const [users, setUsers] = useState<Array<{ id: string; name: string; email: string }>>([]);
 
   // Fetch plans, users, and notifications on component mount
@@ -72,10 +144,10 @@ export default function AdminDashboard() {
 
   const fetchPlans = async () => {
     try {
-      const response = await fetch(`${API_URL}/plans`);
+      const response = await fetch(`${API_URL}/api/plans`);
       const data = await response.json();
       if (data.success) {
-        setPlans(data.data);
+        setPlans(data.data.plans);
       }
     } catch (error) {
       console.error('Error fetching plans:', error);
@@ -85,7 +157,7 @@ export default function AdminDashboard() {
   const fetchUsers = async () => {
     try {
       const adminToken = localStorage.getItem('adminToken');
-      const response = await fetch(`${API_URL}/admin/users`, {
+      const response = await fetch(`${API_URL}/api/admin/users`, {
         headers: {
           'Authorization': `Bearer ${adminToken}`
         }
@@ -156,10 +228,11 @@ export default function AdminDashboard() {
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
+    
     try {
       const adminToken = localStorage.getItem('adminToken');
-      const response = await fetch(`${API_URL}/admin/create-user`, {
+      console.log("adminToken", adminToken);
+      const response = await fetch(`${API_URL}/api/admin/create-user`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -170,21 +243,18 @@ export default function AdminDashboard() {
 
       const data = await response.json();
 
+      console.log('Create User Response:', data);
+
       if (data.success) {
-        toast.success('User created successfully!', {
-          description: `User: ${data.data.name} (${data.data.email})`
-        });
-        setUserData({ name: '', email: '', phone: '', password: '' });
+        toast.success(`User created: ${data.data.name} (${data.data.email})`);
+        setUserData({ name: '', email: '', phone: '' });
         fetchUsers();
       } else {
-        toast.error('Failed to create user', {
-          description: data.message
-        });
+        toast.error(`Failed to create user: ${data.message || 'Unknown error'}`);
       }
     } catch (error) {
-      toast.error('Error creating user', {
-        description: 'Please check your connection and try again'
-      });
+      const errorMsg = error instanceof Error ? error.message : 'Please check your connection';
+      toast.error(`Error creating user: ${errorMsg}`);
     } finally {
       setLoading(false);
     }
@@ -196,7 +266,7 @@ export default function AdminDashboard() {
 
     try {
       const adminToken = localStorage.getItem('adminToken');
-      const response = await fetch(`${API_URL}/admin/create-subscription`, {
+      const response = await fetch(`${API_URL}/api/admin/create-subscription`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -208,8 +278,7 @@ export default function AdminDashboard() {
       const data = await response.json();
 
       if (data.success) {
-        toast.success('Subscription created and activated!', {
-          description: `Access Code: ${data.data.accessCode}`,
+        toast.success(`Subscription created! Access Code: ${data.data.accessCode}`, {
           duration: 10000
         });
         setSubscriptionData({
@@ -221,14 +290,11 @@ export default function AdminDashboard() {
           adminNotes: ''
         });
       } else {
-        toast.error('Failed to create subscription', {
-          description: data.message
-        });
+        toast.error(`Failed to create subscription: ${data.message || 'Unknown error'}`);
       }
     } catch (error) {
-      toast.error('Error creating subscription', {
-        description: 'Please check your connection and try again'
-      });
+      const errorMsg = error instanceof Error ? error.message : 'Please check your connection';
+      toast.error(`Error creating subscription: ${errorMsg}`);
     } finally {
       setLoading(false);
     }
@@ -241,7 +307,7 @@ export default function AdminDashboard() {
 
     try {
       const adminToken = localStorage.getItem('adminToken');
-      const response = await fetch(`${API_URL}/admin/user-by-access-code/${accessCode}`, {
+      const response = await fetch(`${API_URL}/api/admin/user-by-access-code/${accessCode}`, {
         headers: {
           'Authorization': `Bearer ${adminToken}`
         }
@@ -253,14 +319,11 @@ export default function AdminDashboard() {
         setLookupResult(data.data);
         toast.success('Access code found!');
       } else {
-        toast.error('Access code not found', {
-          description: data.message
-        });
+        toast.error(`Access code not found: ${data.message || 'Unknown error'}`);
       }
     } catch (error) {
-      toast.error('Error looking up access code', {
-        description: 'Please check your connection and try again'
-      });
+      const errorMsg = error instanceof Error ? error.message : 'Please check your connection';
+      toast.error(`Error looking up access code: ${errorMsg}`);
     } finally {
       setLoading(false);
     }
@@ -326,6 +389,17 @@ export default function AdminDashboard() {
             </span>
           )}
         </button>
+        <button
+          onClick={() => setActiveTab('manage-plans')}
+          className={`px-4 py-2 font-medium transition-colors ${
+            activeTab === 'manage-plans'
+              ? 'border-b-2 border-blue-600 text-blue-600'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          <Settings className="inline h-4 w-4 mr-2" />
+          Manage Plans
+        </button>
       </div>
 
       {/* Create User Form */}
@@ -367,16 +441,6 @@ export default function AdminDashboard() {
                     placeholder="+2348012345678"
                     value={userData.phone}
                     onChange={(e) => setUserData({ ...userData, phone: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password *</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={userData.password}
-                    onChange={(e) => setUserData({ ...userData, password: e.target.value })}
                     required
                   />
                 </div>
@@ -445,20 +509,31 @@ export default function AdminDashboard() {
                     required
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="timeSlot">Time Slot</Label>
-                  <select
-                    id="timeSlot"
-                    className="w-full px-3 py-2 border rounded-md"
-                    value={subscriptionData.timeSlot}
-                    onChange={(e) => setSubscriptionData({ ...subscriptionData, timeSlot: e.target.value })}
-                  >
-                    <option value="">All Day</option>
-                    <option value="MORNING">Morning</option>
-                    <option value="AFTERNOON">Afternoon</option>
-                    <option value="NIGHT">Night</option>
-                  </select>
-                </div>
+                {/* Only show time slot for system plans */}
+                {(() => {
+                  const selectedPlan = plans.find(p => p.id === subscriptionData.planId);
+                  const isCustomPlan = selectedPlan?.isCustom || false;
+                  
+                  if (!isCustomPlan && subscriptionData.planId) {
+                    return (
+                      <div className="space-y-2">
+                        <Label htmlFor="timeSlot">Time Slot</Label>
+                        <select
+                          id="timeSlot"
+                          className="w-full px-3 py-2 border rounded-md"
+                          value={subscriptionData.timeSlot}
+                          onChange={(e) => setSubscriptionData({ ...subscriptionData, timeSlot: e.target.value })}
+                        >
+                          <option value="">All Day</option>
+                          <option value="MORNING">Morning</option>
+                          <option value="AFTERNOON">Afternoon</option>
+                          <option value="NIGHT">Night</option>
+                        </select>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
                 <div className="space-y-2">
                   <Label htmlFor="paymentMethod">Payment Method</Label>
                   <Input
@@ -488,7 +563,7 @@ export default function AdminDashboard() {
 
       {/* Access Code Lookup */}
       {activeTab === 'lookup' && (
-        <div className="space-y-4">
+        <div className="space-y-4 max-w-[1100px]">
           <Card>
             <CardHeader>
               <CardTitle>Lookup by Access Code</CardTitle>
@@ -529,34 +604,86 @@ export default function AdminDashboard() {
                 {/* User Info */}
                 <div>
                   <h3 className="font-semibold mb-2">User Information</h3>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div className="text-gray-600">Name:</div>
-                    <div className="font-medium">{lookupResult.user.name}</div>
-                    <div className="text-gray-600">Email:</div>
-                    <div className="font-medium">{lookupResult.user.email}</div>
-                    <div className="text-gray-600">Phone:</div>
-                    <div className="font-medium">{lookupResult.user.phone}</div>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex">
+                      <span className="text-gray-600 w-48 sm:w-64 flex-shrink-0">Name:</span>
+                      <span className="font-medium">{lookupResult.user.name}</span>
+                    </div>
+                    <div className="flex">
+                      <span className="text-gray-600 w-48 sm:w-64 flex-shrink-0">Email:</span>
+                      <span className="font-medium">{lookupResult.user.email}</span>
+                    </div>
+                    <div className="flex">
+                      <span className="text-gray-600 w-48 sm:w-64 flex-shrink-0">Phone:</span>
+                      <span className="font-medium">{lookupResult.user.phone}</span>
+                    </div>
                   </div>
                 </div>
 
                 {/* Subscription Info */}
                 <div>
                   <h3 className="font-semibold mb-2">Subscription Information</h3>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div className="text-gray-600">Plan:</div>
-                    <div className="font-medium">{lookupResult.plan.name}</div>
-                    <div className="text-gray-600">Price:</div>
-                    <div className="font-medium">₦{lookupResult.plan.price}</div>
-                    <div className="text-gray-600">Access Code:</div>
-                    <div className="font-mono font-bold text-lg">{lookupResult.subscription.accessCode}</div>
-                    <div className="text-gray-600">Start Date:</div>
-                    <div className="font-medium">{new Date(lookupResult.subscription.startDate).toLocaleDateString()}</div>
-                    <div className="text-gray-600">End Date:</div>
-                    <div className="font-medium">{new Date(lookupResult.subscription.endDate).toLocaleDateString()}</div>
-                    <div className="text-gray-600">Days Remaining:</div>
-                    <div className={`font-medium ${lookupResult.subscription.daysRemaining <= 0 ? 'text-red-600' : 'text-green-600'}`}>
-                      {lookupResult.subscription.daysRemaining} days
+                  <div className="space-y-1 text-sm">
+                    <div className="flex">
+                      <span className="text-gray-600 w-48 sm:w-64 flex-shrink-0">Plan:</span>
+                      <span className="font-medium">{lookupResult.plan.name}</span>
                     </div>
+                    <div className="flex">
+                      <span className="text-gray-600 w-48 sm:w-64 flex-shrink-0">Price:</span>
+                      <span className="font-medium">₦{lookupResult.plan.price}</span>
+                    </div>
+                    <div className="flex">
+                      <span className="text-gray-600 w-48 sm:w-64 flex-shrink-0">Access Code:</span>
+                      <span className="font-mono font-bold text-lg">{lookupResult.subscription.accessCode}</span>
+                    </div>
+                    {/* Time information display - different for custom vs system plans */}
+                    {lookupResult.plan.isCustom ? (
+                      // Custom plan - show datetime range
+                      <>
+                        <div className="flex">
+                          <span className="text-gray-600 w-48 sm:w-64 flex-shrink-0">Access Period:</span>
+                          <span className="font-medium">
+                            {lookupResult.plan.startDateTime && lookupResult.plan.endDateTime
+                              ? `${new Date(lookupResult.plan.startDateTime).toLocaleString()} - ${new Date(lookupResult.plan.endDateTime).toLocaleString()}`
+                              : 'Custom Schedule'}
+                          </span>
+                        </div>
+                        {lookupResult.plan.endDateTime && (
+                          <div className="flex">
+                            <span className="text-gray-600 w-48 sm:w-64 flex-shrink-0">Time Remaining:</span>
+                            <span className={`font-medium ${lookupResult.subscription.isExpired ? 'text-red-600' : 'text-green-600'}`}>
+                              {formatTimeRemaining(new Date(lookupResult.plan.endDateTime))}
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      // System plan - show time slot and daily times
+                      <>
+                        <div className="flex">
+                          <span className="text-gray-600 w-48 sm:w-64 flex-shrink-0">Time Slot:</span>
+                          <span className="font-medium">{lookupResult.subscription.timeSlot || 'All Day'}</span>
+                        </div>
+                        <div className="flex">
+                          <span className="text-gray-600 w-48 sm:w-64 flex-shrink-0">Expected Start Time:</span>
+                          <span className="font-medium">{formatTime(getExpectedTimes(lookupResult.subscription.timeSlot).start)}</span>
+                        </div>
+                        <div className="flex">
+                          <span className="text-gray-600 w-48 sm:w-64 flex-shrink-0">Actual Start Time:</span>
+                          <span className="font-medium">{new Date(lookupResult.subscription.createdAt).toLocaleString()}</span>
+                        </div>
+                        <div className="flex">
+                          <span className="text-gray-600 w-48 sm:w-64 flex-shrink-0">End Time:</span>
+                          <span className="font-medium">{formatTime(getExpectedTimes(lookupResult.subscription.timeSlot).end)}</span>
+                        </div>
+                        <div className="flex">
+                          <span className="text-gray-600 w-48 sm:w-64 flex-shrink-0">Time Remaining:</span>
+                          <span className={`font-medium ${lookupResult.subscription.isExpired ? 'text-red-600' : 'text-green-600'}`}>
+                            {formatTimeRemaining(getExpectedTimes(lookupResult.subscription.timeSlot).end)}
+                          </span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -649,6 +776,11 @@ export default function AdminDashboard() {
             )}
           </CardContent>
         </Card>
+      )}
+
+      {/* Manage Plans Tab */}
+      {activeTab === 'manage-plans' && (
+        <ManagePlans plans={plans} onRefresh={fetchPlans} />
       )}
     </div>
   );

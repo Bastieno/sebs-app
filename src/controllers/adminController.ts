@@ -45,10 +45,10 @@ export const createUserManually = async (req: Request, res: Response) => {
     return res.status(401).json({ success: false, message: 'Unauthorized' });
   }
 
-  if (!name || !email || !phone || !password) {
+  if (!name || !email || !phone) {
     return res.status(400).json({
       success: false,
-      message: 'All fields are required (name, email, phone, password)'
+      message: 'Name, email, and phone are required'
     } as ApiResponse);
   }
 
@@ -63,7 +63,9 @@ export const createUserManually = async (req: Request, res: Response) => {
     }
 
     const bcrypt = require('bcryptjs');
-    const passwordHash = await bcrypt.hash(password, 10);
+    // Generate a random password if none provided (user won't need to login)
+    const userPassword = password || Math.random().toString(36).slice(-12);
+    const passwordHash = await bcrypt.hash(userPassword, 10);
 
     const user = await prisma.user.create({
       data: {
@@ -288,10 +290,23 @@ export const getUserByAccessCode = async (req: Request, res: Response) => {
 
     // Check subscription status
     const now = new Date();
-    const endDate = new Date(subscription.endDate);
-    const graceEndDate = subscription.graceEndDate ? new Date(subscription.graceEndDate) : null;
-    const isExpired = now > endDate && (!graceEndDate || now > graceEndDate);
-    const daysRemaining = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    
+    // For custom plans, use the plan's endDateTime; for system plans, use subscription's endDate
+    let isExpired: boolean;
+    let daysRemaining: number;
+    
+    if (subscription.plan.isCustom && subscription.plan.endDateTime) {
+      // Custom plan - check against plan's endDateTime
+      const endDateTime = new Date(subscription.plan.endDateTime);
+      isExpired = now > endDateTime;
+      daysRemaining = Math.ceil((endDateTime.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    } else {
+      // System plan - check against subscription's endDate with grace period
+      const endDate = new Date(subscription.endDate);
+      const graceEndDate = subscription.graceEndDate ? new Date(subscription.graceEndDate) : null;
+      isExpired = now > endDate && (!graceEndDate || now > graceEndDate);
+      daysRemaining = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    }
 
     return res.status(200).json({
       success: true,

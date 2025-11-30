@@ -1,6 +1,6 @@
 // API configuration and service functions for QR Scanner frontend
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
 
 // Types for API responses
 export interface ValidationResponse {

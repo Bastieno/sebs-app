@@ -38,12 +38,17 @@ model Plan {
   name         String
   price        Decimal      @db.Decimal(10, 2)
   durationType DurationType @map("duration_type")
-  timeStart    String?      @map("time_start") // Format: "08:00"
-  timeEnd      String?      @map("time_end")   // Format: "12:00"
+  timeStart    String?      @map("time_start") // Format: "08:00" - for system plans
+  timeEnd      String?      @map("time_end")   // Format: "12:00" - for system plans
+  startDateTime DateTime?   @map("start_datetime") // For custom plans with specific date-time
+  endDateTime   DateTime?   @map("end_datetime")   // For custom plans with specific date-time
   maxCapacity  Int?         @map("max_capacity")
   currentCapacity Int       @default(0) @map("current_capacity")
+  isCustom     Boolean      @default(false) @map("is_custom") // Distinguish custom plans from system plans
+  notes        String?      @db.Text // Optional notes for custom plans
   isActive     Boolean      @default(true) @map("is_active")
   createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
 
   // Relations
   subscriptions Subscription[]
@@ -56,7 +61,7 @@ model Subscription {
   id           String             @id @default(uuid())
   userId       String             @map("user_id")
   planId       String             @map("plan_id")
-  timeSlot     TimeSlot?          @map("time_slot")
+  timeSlot     TimeSlot?          @map("time_slot") // Optional: only for system plans
   status       SubscriptionStatus @default(PENDING)
   startDate    DateTime           @map("start_date") @db.Date
   endDate      DateTime           @map("end_date") @db.Date
