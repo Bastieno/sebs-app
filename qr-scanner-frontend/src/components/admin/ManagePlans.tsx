@@ -14,13 +14,10 @@ interface Plan {
   id: string;
   name: string;
   price: number;
-  timeStart?: string;
-  timeEnd?: string;
-  startDateTime?: string;
-  endDateTime?: string;
+  timeUnit: string;
+  duration: number;
   isCustom?: boolean;
   notes?: string;
-  durationType?: string;
 }
 
 interface ManagePlansProps {
@@ -78,22 +75,22 @@ export default function ManagePlans({ plans, onRefresh }: ManagePlansProps) {
       } else {
         toast.error(data.message || 'Failed to delete custom plan');
       }
-    } catch (error) {
+    } catch {
       toast.error('Error deleting custom plan');
     } finally {
       setDeleteLoading(null);
     }
   };
 
-  const formatDateTime = (dateString?: string) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+  const formatDuration = (timeUnit: string, duration: number) => {
+    const unitMap: { [key: string]: string } = {
+      HOURS: duration === 1 ? 'Hour' : 'Hours',
+      DAYS: duration === 1 ? 'Day' : 'Days',
+      WEEK: duration === 1 ? 'Week' : 'Weeks',
+      MONTH: duration === 1 ? 'Month' : 'Months',
+      YEAR: duration === 1 ? 'Year' : 'Years'
+    };
+    return `${duration} ${unitMap[timeUnit] || timeUnit}`;
   };
 
   return (
@@ -117,7 +114,6 @@ export default function ManagePlans({ plans, onRefresh }: ManagePlansProps) {
               <TableHead>Type</TableHead>
               <TableHead>Price</TableHead>
               <TableHead>Duration</TableHead>
-              <TableHead>Time/Period</TableHead>
               <TableHead>Notes</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -125,7 +121,7 @@ export default function ManagePlans({ plans, onRefresh }: ManagePlansProps) {
           <TableBody>
             {sortedPlans.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                   No plans found
                 </TableCell>
               </TableRow>
@@ -140,23 +136,9 @@ export default function ManagePlans({ plans, onRefresh }: ManagePlansProps) {
                   </TableCell>
                   <TableCell>₦{plan.price.toLocaleString()}</TableCell>
                   <TableCell>
-                    {plan.durationType ? (
-                      <Badge variant="outline">{plan.durationType}</Badge>
-                    ) : (
-                      'Custom'
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {plan.isCustom ? (
-                      <div className="text-xs space-y-1">
-                        <div>Start: {formatDateTime(plan.startDateTime)}</div>
-                        <div>End: {formatDateTime(plan.endDateTime)}</div>
-                      </div>
-                    ) : plan.timeStart && plan.timeEnd ? (
-                      `${plan.timeStart} - ${plan.timeEnd}`
-                    ) : (
-                      'All Day'
-                    )}
+                    <Badge variant="outline">
+                      {formatDuration(plan.timeUnit, plan.duration)}
+                    </Badge>
                   </TableCell>
                   <TableCell>
                     {plan.notes ? (

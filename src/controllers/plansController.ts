@@ -7,18 +7,15 @@ export const getAllPlans = async (req: Request, res: Response): Promise<void> =>
     const plans = await prisma.plan.findMany({
       where: { isActive: true },
       orderBy: [
-        { durationType: 'asc' },
+        { timeUnit: 'asc' },
         { price: 'asc' }
       ],
       select: {
         id: true,
         name: true,
         price: true,
-        durationType: true,
-        timeStart: true,
-        timeEnd: true,
-        startDateTime: true,
-        endDateTime: true,
+        timeUnit: true,
+        duration: true,
         maxCapacity: true,
         isCustom: true,
         notes: true,
@@ -26,11 +23,13 @@ export const getAllPlans = async (req: Request, res: Response): Promise<void> =>
       }
     });
 
-    // Group plans by duration type for better organization
+    // Group plans by time unit for better organization
     const groupedPlans = {
-      daily: plans.filter(plan => plan.durationType === 'DAILY'),
-      weekly: plans.filter(plan => plan.durationType === 'WEEKLY'),
-      monthly: plans.filter(plan => plan.durationType === 'MONTHLY'),
+      hours: plans.filter(plan => plan.timeUnit === 'HOURS'),
+      days: plans.filter(plan => plan.timeUnit === 'DAYS'),
+      week: plans.filter(plan => plan.timeUnit === 'WEEK'),
+      month: plans.filter(plan => plan.timeUnit === 'MONTH'),
+      year: plans.filter(plan => plan.timeUnit === 'YEAR'),
     };
 
     res.status(200).json({
@@ -72,21 +71,11 @@ export const getPlanById = async (req: Request, res: Response): Promise<void> =>
         id: true,
         name: true,
         price: true,
-        durationType: true,
-        timeStart: true,
-        timeEnd: true,
+        timeUnit: true,
+        duration: true,
         maxCapacity: true,
         isActive: true,
         createdAt: true,
-        _count: {
-          select: {
-            subscriptions: {
-              where: {
-                status: 'ACTIVE'
-              }
-            }
-          }
-        }
       }
     });
 
@@ -102,10 +91,7 @@ export const getPlanById = async (req: Request, res: Response): Promise<void> =>
     res.status(200).json({
       success: true,
       message: 'Plan retrieved successfully',
-      data: {
-        ...plan,
-        activeSubscriptions: plan._count.subscriptions
-      }
+      data: plan
     } as ApiResponse);
 
   } catch (error) {
@@ -126,32 +112,31 @@ export const getPlanPricing = async (req: Request, res: Response): Promise<void>
         id: true,
         name: true,
         price: true,
-        durationType: true,
-        timeStart: true,
-        timeEnd: true,
+        timeUnit: true,
+        duration: true,
       },
       orderBy: [
-        { durationType: 'asc' },
+        { timeUnit: 'asc' },
         { price: 'asc' }
       ]
     });
 
-    // Create pricing structure for frontend display
+    // Create pricing structure for frontend display based on plan names
     const pricingStructure = {
-      daily: {
-        morning: plans.find(p => p.durationType === 'DAILY' && p.timeStart === '08:00'),
-        afternoon: plans.find(p => p.durationType === 'DAILY' && p.timeStart === '12:00'),
-        night: plans.find(p => p.durationType === 'DAILY' && p.timeStart === '18:00'),
+      hourly: {
+        morning: plans.find(p => p.name.includes('Morning') && p.timeUnit === 'HOURS'),
+        afternoon: plans.find(p => p.name.includes('Afternoon') && p.timeUnit === 'HOURS'),
+        night: plans.find(p => p.name.includes('Night') && p.timeUnit === 'HOURS'),
       },
       weekly: {
-        morning: plans.find(p => p.durationType === 'WEEKLY' && p.timeStart === '08:00'),
-        afternoon: plans.find(p => p.durationType === 'WEEKLY' && p.timeStart === '12:00'),
-        night: plans.find(p => p.durationType === 'WEEKLY' && p.timeStart === '18:00'),
+        morning: plans.find(p => p.name.includes('Morning') && p.timeUnit === 'WEEK'),
+        afternoon: plans.find(p => p.name.includes('Afternoon') && p.timeUnit === 'WEEK'),
+        night: plans.find(p => p.name.includes('Night') && p.timeUnit === 'WEEK'),
         teamNight: plans.find(p => p.name.includes('Team Night')),
       },
       monthly: {
-        standard: plans.find(p => p.durationType === 'MONTHLY' && p.price.toString() === '30000'),
-        premium: plans.find(p => p.durationType === 'MONTHLY' && p.price.toString() === '40000'),
+        standard: plans.find(p => p.name.includes('Standard') && p.timeUnit === 'MONTH'),
+        premium: plans.find(p => p.name.includes('Premium') && p.timeUnit === 'MONTH'),
       }
     };
 
@@ -174,7 +159,7 @@ export const getPlanPricing = async (req: Request, res: Response): Promise<void>
 // Create a custom plan (Admin only)
 export const createCustomPlan = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, price, startDateTime, endDateTime, notes } = req.body;
+    const { name, price, timeUnit, duration, notes } = req.body;
 
     if (!req.user) {
       res.status(401).json({ 
@@ -185,42 +170,41 @@ export const createCustomPlan = async (req: Request, res: Response): Promise<voi
     }
 
     // Validate required fields
-    if (!name || !price || !startDateTime || !endDateTime) {
+    if (!name || !price || !timeUnit || !duration) {
       res.status(400).json({
         success: false,
-        message: 'Name, price, start date time, and end date time are required'
+        message: 'Name, price, time unit, and duration are required'
       } as ApiResponse);
       return;
     }
 
-    // Validate and parse date times
-    const startDate = new Date(startDateTime);
-    const endDate = new Date(endDateTime);
-
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+    // Validate timeUnit
+    const validTimeUnits = ['HOURS', 'DAYS', 'WEEK', 'MONTH', 'YEAR'];
+    if (!validTimeUnits.includes(timeUnit)) {
       res.status(400).json({
         success: false,
-        message: 'Invalid date time format'
+        message: 'Invalid time unit. Must be one of: HOURS, DAYS, WEEK, MONTH, YEAR'
       } as ApiResponse);
       return;
     }
 
-    if (endDate <= startDate) {
+    // Validate duration is a positive number
+    const parsedDuration = parseInt(duration);
+    if (isNaN(parsedDuration) || parsedDuration <= 0) {
       res.status(400).json({
         success: false,
-        message: 'End date time must be after start date time'
+        message: 'Duration must be a positive number'
       } as ApiResponse);
       return;
     }
 
-    // Create custom plan (always DAILY duration type for custom plans)
+    // Create custom plan
     const plan = await prisma.plan.create({
       data: {
         name,
         price: parseFloat(price),
-        durationType: 'DAILY',
-        startDateTime: startDate,
-        endDateTime: endDate,
+        timeUnit,
+        duration: parsedDuration,
         isCustom: true,
         notes: notes || null,
         isActive: true
@@ -247,7 +231,7 @@ export const createCustomPlan = async (req: Request, res: Response): Promise<voi
 export const updateCustomPlan = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { name, price, startDateTime, endDateTime, notes, isActive } = req.body;
+    const { name, price, timeUnit, duration, notes, isActive } = req.body;
 
     if (!req.user) {
       res.status(401).json({ 
@@ -286,39 +270,29 @@ export const updateCustomPlan = async (req: Request, res: Response): Promise<voi
       return;
     }
 
-    // Validate and parse date times if provided
-    let startDate: Date | undefined;
-    let endDate: Date | undefined;
-
-    if (startDateTime) {
-      startDate = new Date(startDateTime);
-      if (isNaN(startDate.getTime())) {
+    // Validate timeUnit if provided
+    if (timeUnit) {
+      const validTimeUnits = ['HOURS', 'DAYS', 'WEEK', 'MONTH', 'YEAR'];
+      if (!validTimeUnits.includes(timeUnit)) {
         res.status(400).json({
           success: false,
-          message: 'Invalid start date time format'
+          message: 'Invalid time unit. Must be one of: HOURS, DAYS, WEEK, MONTH, YEAR'
         } as ApiResponse);
         return;
       }
     }
 
-    if (endDateTime) {
-      endDate = new Date(endDateTime);
-      if (isNaN(endDate.getTime())) {
+    // Validate duration if provided
+    let parsedDuration: number | undefined;
+    if (duration) {
+      parsedDuration = parseInt(duration);
+      if (isNaN(parsedDuration) || parsedDuration <= 0) {
         res.status(400).json({
           success: false,
-          message: 'Invalid end date time format'
+          message: 'Duration must be a positive number'
         } as ApiResponse);
         return;
       }
-    }
-
-    // If both dates provided, validate that end is after start
-    if (startDate && endDate && endDate <= startDate) {
-      res.status(400).json({
-        success: false,
-        message: 'End date time must be after start date time'
-      } as ApiResponse);
-      return;
     }
 
     // Update plan
@@ -327,8 +301,8 @@ export const updateCustomPlan = async (req: Request, res: Response): Promise<voi
       data: {
         ...(name && { name }),
         ...(price && { price: parseFloat(price) }),
-        ...(startDate && { startDateTime: startDate }),
-        ...(endDate && { endDateTime: endDate }),
+        ...(timeUnit && { timeUnit }),
+        ...(parsedDuration && { duration: parsedDuration }),
         ...(notes !== undefined && { notes: notes || null }),
         ...(isActive !== undefined && { isActive })
       }
@@ -373,18 +347,7 @@ export const deleteCustomPlan = async (req: Request, res: Response): Promise<voi
 
     // Check if plan exists and is a custom plan
     const existingPlan = await prisma.plan.findUnique({
-      where: { id },
-      include: {
-        _count: {
-          select: {
-            subscriptions: {
-              where: {
-                status: 'ACTIVE'
-              }
-            }
-          }
-        }
-      }
+      where: { id }
     });
 
     if (!existingPlan) {
@@ -399,15 +362,6 @@ export const deleteCustomPlan = async (req: Request, res: Response): Promise<voi
       res.status(403).json({
         success: false,
         message: 'Cannot delete system plans. Only custom plans can be deleted.'
-      } as ApiResponse);
-      return;
-    }
-
-    // Check if plan has active subscriptions
-    if (existingPlan._count.subscriptions > 0) {
-      res.status(400).json({
-        success: false,
-        message: `Cannot delete plan with ${existingPlan._count.subscriptions} active subscription(s). Deactivate it instead.`
       } as ApiResponse);
       return;
     }

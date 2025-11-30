@@ -136,18 +136,24 @@ export const createAndActivateSubscription = async (req: Request, res: Response)
       } as ApiResponse);
     }
 
-    // Helper functions
-    const calculateEndDate = (startDate: Date, durationType: string): Date => {
+    // Helper function to calculate end date based on plan timeUnit and duration
+    const calculateEndDate = (startDate: Date, timeUnit: string, duration: number): Date => {
       const endDate = new Date(startDate);
-      switch (durationType) {
-        case 'DAILY':
-          endDate.setDate(endDate.getDate() + 1);
+      switch (timeUnit) {
+        case 'HOURS':
+          endDate.setHours(endDate.getHours() + duration);
           break;
-        case 'WEEKLY':
-          endDate.setDate(endDate.getDate() + 7);
+        case 'DAYS':
+          endDate.setDate(endDate.getDate() + duration);
           break;
-        case 'MONTHLY':
-          endDate.setMonth(endDate.getMonth() + 1);
+        case 'WEEK':
+          endDate.setDate(endDate.getDate() + (duration * 7));
+          break;
+        case 'MONTH':
+          endDate.setMonth(endDate.getMonth() + duration);
+          break;
+        case 'YEAR':
+          endDate.setFullYear(endDate.getFullYear() + duration);
           break;
         default:
           endDate.setDate(endDate.getDate() + 1);
@@ -155,20 +161,12 @@ export const createAndActivateSubscription = async (req: Request, res: Response)
       return endDate;
     };
 
-    const calculateGraceEndDate = (endDate: Date, durationType: string): Date | null => {
-      if (durationType !== 'MONTHLY') return null;
-      const graceEndDate = new Date(endDate);
-      graceEndDate.setDate(graceEndDate.getDate() + 2);
-      return graceEndDate;
-    };
-
     const generateAccessCode = (): string => {
       return Math.floor(100000 + Math.random() * 900000).toString();
     };
 
     const parsedStartDate = new Date(startDate);
-    const endDate = calculateEndDate(parsedStartDate, plan.durationType);
-    const graceEndDate = calculateGraceEndDate(endDate, plan.durationType);
+    const endDate = calculateEndDate(parsedStartDate, plan.timeUnit, plan.duration);
 
     // Generate unique access code
     let accessCode = generateAccessCode();
@@ -184,10 +182,9 @@ export const createAndActivateSubscription = async (req: Request, res: Response)
         data: {
           userId,
           planId,
-          timeSlot: timeSlot || (plan.durationType === 'MONTHLY' && plan.name.includes('Premium') ? 'ALL' : null),
+          timeSlot: timeSlot || (plan.timeUnit === 'MONTH' && plan.name.includes('Premium') ? 'ALL' : null),
           startDate: parsedStartDate,
           endDate,
-          graceEndDate,
           accessCode,
           status: 'ACTIVE',
           approvedAt: new Date(),
@@ -290,23 +287,9 @@ export const getUserByAccessCode = async (req: Request, res: Response) => {
 
     // Check subscription status
     const now = new Date();
-    
-    // For custom plans, use the plan's endDateTime; for system plans, use subscription's endDate
-    let isExpired: boolean;
-    let daysRemaining: number;
-    
-    if (subscription.plan.isCustom && subscription.plan.endDateTime) {
-      // Custom plan - check against plan's endDateTime
-      const endDateTime = new Date(subscription.plan.endDateTime);
-      isExpired = now > endDateTime;
-      daysRemaining = Math.ceil((endDateTime.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    } else {
-      // System plan - check against subscription's endDate with grace period
-      const endDate = new Date(subscription.endDate);
-      const graceEndDate = subscription.graceEndDate ? new Date(subscription.graceEndDate) : null;
-      isExpired = now > endDate && (!graceEndDate || now > graceEndDate);
-      daysRemaining = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    }
+    const endDate = new Date(subscription.endDate);
+    const isExpired = now > endDate;
+    const daysRemaining = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
     return res.status(200).json({
       success: true,
@@ -318,7 +301,6 @@ export const getUserByAccessCode = async (req: Request, res: Response) => {
           status: subscription.status,
           startDate: subscription.startDate,
           endDate: subscription.endDate,
-          graceEndDate: subscription.graceEndDate,
           timeSlot: subscription.timeSlot,
           accessCode: subscription.accessCode,
           isExpired,
@@ -732,9 +714,9 @@ export const getUserSubscriptions = async (req: Request, res: Response) => {
             id: true,
             name: true,
             price: true,
-            isCustom: true,
-            startDateTime: true,
-            endDateTime: true
+            timeUnit: true,
+            duration: true,
+            isCustom: true
           }
         }
       },
@@ -744,15 +726,8 @@ export const getUserSubscriptions = async (req: Request, res: Response) => {
     // Calculate expiration status for each subscription
     const now = new Date();
     const subscriptionsWithStatus = subscriptions.map(sub => {
-      let isExpired: boolean;
-      if (sub.plan.isCustom && sub.plan.endDateTime) {
-        const endDateTime = new Date(sub.plan.endDateTime);
-        isExpired = now > endDateTime;
-      } else {
-        const endDate = new Date(sub.endDate);
-        const graceEndDate = sub.graceEndDate ? new Date(sub.graceEndDate) : null;
-        isExpired = now > endDate && (!graceEndDate || now > graceEndDate);
-      }
+      const endDate = new Date(sub.endDate);
+      const isExpired = now > endDate;
 
       return {
         ...sub,

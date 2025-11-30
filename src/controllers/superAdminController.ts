@@ -104,10 +104,10 @@ export const deleteUser = async (req: Request, res: Response): Promise<void> => 
 };
 
 export const createPlan = async (req: Request, res: Response): Promise<Response> => {
-  const { name, price, durationType, timeStart, timeEnd, maxCapacity } = req.body;
+  const { name, price, timeUnit, duration, maxCapacity } = req.body;
 
-  if (!name || !price || !durationType) {
-    return res.status(400).json({ message: 'Name, price, and duration type are required' });
+  if (!name || !price || !timeUnit || !duration) {
+    return res.status(400).json({ message: 'Name, price, time unit, and duration are required' });
   }
 
   try {
@@ -115,9 +115,8 @@ export const createPlan = async (req: Request, res: Response): Promise<Response>
       data: {
         name,
         price,
-        durationType,
-        timeStart,
-        timeEnd,
+        timeUnit,
+        duration,
         maxCapacity,
       },
     });
@@ -130,7 +129,7 @@ export const createPlan = async (req: Request, res: Response): Promise<Response>
 
 export const updatePlan = async (req: Request, res: Response): Promise<Response> => {
   const { id } = req.params;
-  const { name, price, durationType, timeStart, timeEnd, maxCapacity, isActive } = req.body;
+  const { name, price, timeUnit, duration, maxCapacity, isActive } = req.body;
 
   try {
     const updatedPlan = await prisma.plan.update({
@@ -138,9 +137,8 @@ export const updatePlan = async (req: Request, res: Response): Promise<Response>
       data: {
         name,
         price,
-        durationType,
-        timeStart,
-        timeEnd,
+        timeUnit,
+        duration,
         maxCapacity,
         isActive,
       },

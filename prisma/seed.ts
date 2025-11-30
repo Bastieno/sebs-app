@@ -7,29 +7,26 @@ async function main() {
 
   // Create access plans based on the requirements
   const plans = [
-    // Daily Plans
+    // Daily Plans (4-hour access for morning, 5-hour for afternoon, 12-hour for night)
     {
       name: 'Morning Plan (Daily)',
       price: 2000,
-      durationType: 'DAILY' as const,
-      timeStart: '08:00',
-      timeEnd: '12:00',
+      timeUnit: 'HOURS' as const,
+      duration: 4,
       maxCapacity: null,
     },
     {
       name: 'Afternoon Plan (Daily)',
       price: 3000,
-      durationType: 'DAILY' as const,
-      timeStart: '12:00',
-      timeEnd: '17:00',
+      timeUnit: 'HOURS' as const,
+      duration: 5,
       maxCapacity: null,
     },
     {
       name: 'Night Plan (Daily)',
       price: 5000,
-      durationType: 'DAILY' as const,
-      timeStart: '18:00',
-      timeEnd: '06:00',
+      timeUnit: 'HOURS' as const,
+      duration: 12,
       maxCapacity: null,
     },
     
@@ -37,25 +34,22 @@ async function main() {
     {
       name: 'Morning Plan (Weekly)',
       price: 8000,
-      durationType: 'WEEKLY' as const,
-      timeStart: '08:00',
-      timeEnd: '12:00',
+      timeUnit: 'WEEK' as const,
+      duration: 1,
       maxCapacity: null,
     },
     {
       name: 'Afternoon Plan (Weekly)',
       price: 12000,
-      durationType: 'WEEKLY' as const,
-      timeStart: '12:00',
-      timeEnd: '17:00',
+      timeUnit: 'WEEK' as const,
+      duration: 1,
       maxCapacity: null,
     },
     {
       name: 'Night Plan (Weekly)',
       price: 20000,
-      durationType: 'WEEKLY' as const,
-      timeStart: '18:00',
-      timeEnd: '06:00',
+      timeUnit: 'WEEK' as const,
+      duration: 1,
       maxCapacity: null,
     },
     
@@ -63,27 +57,24 @@ async function main() {
     {
       name: 'Standard Monthly',
       price: 30000,
-      durationType: 'MONTHLY' as const,
-      timeStart: null,
-      timeEnd: null,
+      timeUnit: 'MONTH' as const,
+      duration: 1,
       maxCapacity: null,
     },
     {
       name: 'Premium Monthly',
       price: 40000,
-      durationType: 'MONTHLY' as const,
-      timeStart: null,
-      timeEnd: null,
+      timeUnit: 'MONTH' as const,
+      duration: 1,
       maxCapacity: null,
     },
     
-    // Team Night Plan (Custom)
+    // Team Night Plan
     {
       name: 'Team Night Plan',
-      price: 0, // Custom pricing
-      durationType: 'WEEKLY' as const,
-      timeStart: '18:00',
-      timeEnd: '06:00',
+      price: 100000, // Team pricing
+      timeUnit: 'WEEK' as const,
+      duration: 1,
       maxCapacity: 14,
     },
   ];

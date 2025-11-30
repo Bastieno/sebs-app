@@ -68,7 +68,7 @@ export async function checkExpiringSubscriptions() {
 
     console.log(`Found ${justExpiredSubscriptions.length} subscriptions that just expired`);
 
-    // Send WhatsApp notifications for expired subscriptions
+    // Send notifications for expired subscriptions
     for (const subscription of justExpiredSubscriptions) {
       try {
         const template = templates.subscriptionExpired(
@@ -82,13 +82,11 @@ export async function checkExpiringSubscriptions() {
           type: 'EXPIRED'
         });
 
-        // Update subscription status to EXPIRED (or IN_GRACE_PERIOD if applicable)
-        const hasGracePeriod = subscription.graceEndDate && new Date(subscription.graceEndDate) > now;
-        
+        // Update subscription status to EXPIRED
         await prisma.subscription.update({
           where: { id: subscription.id },
           data: {
-            status: hasGracePeriod ? 'IN_GRACE_PERIOD' : 'EXPIRED',
+            status: 'EXPIRED',
           },
         });
 

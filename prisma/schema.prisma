@@ -37,11 +37,8 @@ model Plan {
   id           String       @id @default(uuid())
   name         String
   price        Decimal      @db.Decimal(10, 2)
-  durationType DurationType @map("duration_type")
-  timeStart    String?      @map("time_start") // Format: "08:00" - for system plans
-  timeEnd      String?      @map("time_end")   // Format: "12:00" - for system plans
-  startDateTime DateTime?   @map("start_datetime") // For custom plans with specific date-time
-  endDateTime   DateTime?   @map("end_datetime")   // For custom plans with specific date-time
+  timeUnit     TimeUnit     @map("time_unit")
+  duration     Int          // Number of time units (e.g., 4 hours, 1 week, 1 month)
   maxCapacity  Int?         @map("max_capacity")
   currentCapacity Int       @default(0) @map("current_capacity")
   isCustom     Boolean      @default(false) @map("is_custom") // Distinguish custom plans from system plans
@@ -61,11 +58,10 @@ model Subscription {
   id           String             @id @default(uuid())
   userId       String             @map("user_id")
   planId       String             @map("plan_id")
-  timeSlot     TimeSlot?          @map("time_slot") // Optional: only for system plans
+  timeSlot     TimeSlot?          @map("time_slot") // Time-of-day access restriction (MORNING, AFTERNOON, NIGHT, ALL)
   status       SubscriptionStatus @default(PENDING)
   startDate    DateTime           @map("start_date") @db.Date
   endDate      DateTime           @map("end_date") @db.Date
-  graceEndDate DateTime?          @map("grace_end_date") @db.Date
   accessCode   String             @unique @map("access_code")
   adminNotes   String?            @map("admin_notes") @db.Text
   approvedBy   String?            @map("approved_by")
@@ -127,10 +123,12 @@ enum Role {
   SUPER_ADMIN
 }
 
-enum DurationType {
-  DAILY
-  WEEKLY
-  MONTHLY
+enum TimeUnit {
+  HOURS
+  DAYS
+  WEEK
+  MONTH
+  YEAR
 }
 
 enum TimeSlot {

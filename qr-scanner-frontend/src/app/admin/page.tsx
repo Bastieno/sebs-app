@@ -53,7 +53,10 @@ interface Plan {
   id: string;
   name: string;
   price: number;
+  timeUnit: string;
+  duration: number;
   isCustom?: boolean;
+  notes?: string;
 }
 
 export default function AdminDashboard() {

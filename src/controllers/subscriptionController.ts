@@ -11,36 +11,31 @@ interface SubscriptionRequest {
   startDate: string;
 }
 
-// Helper function to calculate end date based on plan duration
-const calculateEndDate = (startDate: Date, durationType: string): Date => {
+// Helper function to calculate end date based on plan timeUnit and duration
+const calculateEndDate = (startDate: Date, timeUnit: string, duration: number): Date => {
   const endDate = new Date(startDate);
   
-  switch (durationType) {
-    case 'DAILY':
-      endDate.setDate(endDate.getDate() + 1);
+  switch (timeUnit) {
+    case 'HOURS':
+      endDate.setHours(endDate.getHours() + duration);
       break;
-    case 'WEEKLY':
-      endDate.setDate(endDate.getDate() + 7);
+    case 'DAYS':
+      endDate.setDate(endDate.getDate() + duration);
       break;
-    case 'MONTHLY':
-      endDate.setMonth(endDate.getMonth() + 1);
+    case 'WEEK':
+      endDate.setDate(endDate.getDate() + (duration * 7));
+      break;
+    case 'MONTH':
+      endDate.setMonth(endDate.getMonth() + duration);
+      break;
+    case 'YEAR':
+      endDate.setFullYear(endDate.getFullYear() + duration);
       break;
     default:
       endDate.setDate(endDate.getDate() + 1);
   }
   
   return endDate;
-};
-
-// Helper function to calculate grace period end date (only for monthly plans)
-const calculateGraceEndDate = (endDate: Date, durationType: string): Date | null => {
-  if (durationType !== 'MONTHLY') {
-    return null;
-  }
-  
-  const graceEndDate = new Date(endDate);
-  graceEndDate.setDate(graceEndDate.getDate() + 2); // 2 days grace period
-  return graceEndDate;
 };
 
 // Helper function to generate 6-digit access code
@@ -109,7 +104,7 @@ export const applyForSubscription = async (req: Request, res: Response): Promise
     }
 
     // Validate time slot for monthly plans
-    if (plan.durationType === 'MONTHLY' && plan.name.includes('Standard') && !timeSlot) {
+    if (plan.timeUnit === 'MONTH' && plan.name.includes('Standard') && !timeSlot) {
       res.status(400).json({
         success: false,
         message: 'Time slot is required for Standard Monthly plan',
@@ -143,10 +138,9 @@ export const applyForSubscription = async (req: Request, res: Response): Promise
       
       // For ACTIVE or IN_GRACE_PERIOD subscriptions, check if they're actually expired
       const endDate = new Date(existingSubscription.endDate);
-      const graceEndDate = existingSubscription.graceEndDate ? new Date(existingSubscription.graceEndDate) : null;
       
-      // Check if subscription is still valid (within end date or grace period)
-      const isStillValid = now <= endDate || (graceEndDate && now <= graceEndDate);
+      // Check if subscription is still valid (within end date)
+      const isStillValid = now <= endDate;
       
       if (isStillValid) {
         res.status(409).json({
@@ -164,9 +158,8 @@ export const applyForSubscription = async (req: Request, res: Response): Promise
       });
     }
 
-    // Calculate dates
-    const endDate = calculateEndDate(parsedStartDate, plan.durationType);
-    const graceEndDate = calculateGraceEndDate(endDate, plan.durationType);
+    // Calculate end date based on plan's timeUnit and duration
+    const endDate = calculateEndDate(parsedStartDate, plan.timeUnit, plan.duration);
 
     // Generate unique 6-digit access code
     let accessCode = generateAccessCode();
@@ -182,10 +175,9 @@ export const applyForSubscription = async (req: Request, res: Response): Promise
       data: {
         userId: req.user.id,
         planId: plan.id,
-        timeSlot: timeSlot || (plan.durationType === 'MONTHLY' && plan.name.includes('Premium') ? 'ALL' : timeSlot),
+        timeSlot: timeSlot || (plan.timeUnit === 'MONTH' && plan.name.includes('Premium') ? 'ALL' : timeSlot),
         startDate: parsedStartDate,
         endDate: endDate,
-        graceEndDate: graceEndDate,
         accessCode: accessCode,
         status: 'PENDING'
       },
@@ -194,9 +186,8 @@ export const applyForSubscription = async (req: Request, res: Response): Promise
           select: {
             name: true,
             price: true,
-            durationType: true,
-            timeStart: true,
-            timeEnd: true
+            timeUnit: true,
+            duration: true
           }
         }
       }
@@ -211,7 +202,6 @@ export const applyForSubscription = async (req: Request, res: Response): Promise
           status: subscription.status,
           startDate: subscription.startDate,
           endDate: subscription.endDate,
-          graceEndDate: subscription.graceEndDate,
           timeSlot: subscription.timeSlot,
           plan: subscription.plan
         },
@@ -343,9 +333,8 @@ export const getUserSubscriptions = async (req: Request, res: Response): Promise
           select: {
             name: true,
             price: true,
-            durationType: true,
-            timeStart: true,
-            timeEnd: true
+            timeUnit: true,
+            duration: true
           }
         },
         paymentReceipts: {
@@ -414,9 +403,8 @@ export const getSubscriptionQRCode = async (req: Request, res: Response): Promis
         plan: {
           select: {
             name: true,
-            durationType: true,
-            timeStart: true,
-            timeEnd: true
+            timeUnit: true,
+            duration: true
           }
         }
       }
@@ -434,9 +422,8 @@ export const getSubscriptionQRCode = async (req: Request, res: Response): Promis
     // Check if subscription is still valid
     const now = new Date();
     const endDate = new Date(subscription.endDate);
-    const graceEndDate = subscription.graceEndDate ? new Date(subscription.graceEndDate) : null;
 
-    if (now > endDate && (!graceEndDate || now > graceEndDate)) {
+    if (now > endDate) {
       res.status(410).json({
         success: false,
         message: 'Subscription expired',
@@ -455,7 +442,6 @@ export const getSubscriptionQRCode = async (req: Request, res: Response): Promis
           status: subscription.status,
           startDate: subscription.startDate,
           endDate: subscription.endDate,
-          graceEndDate: subscription.graceEndDate,
           timeSlot: subscription.timeSlot,
           plan: subscription.plan
         }
@@ -495,7 +481,8 @@ export const getSubscriptionStatus = async (req: Request, res: Response): Promis
           select: {
             name: true,
             price: true,
-            durationType: true
+            timeUnit: true,
+            duration: true
           }
         },
         paymentReceipts: {
@@ -560,8 +547,8 @@ export const renewSubscription = async (req: Request, res: Response): Promise<vo
 
     // Create a new subscription based on the old one
     const newStartDate = new Date();
-    const newEndDate = calculateEndDate(newStartDate, existingSubscription.plan.durationType);
-    const newGraceEndDate = calculateGraceEndDate(newEndDate, existingSubscription.plan.durationType);
+    const newEndDate = calculateEndDate(newStartDate, existingSubscription.plan.timeUnit, existingSubscription.plan.duration);
+    
     // Generate unique 6-digit access code
     let newAccessCode = generateAccessCode();
     let existingCode = await prisma.subscription.findUnique({ where: { accessCode: newAccessCode } });
@@ -577,7 +564,6 @@ export const renewSubscription = async (req: Request, res: Response): Promise<vo
         timeSlot: existingSubscription.timeSlot,
         startDate: newStartDate,
         endDate: newEndDate,
-        graceEndDate: newGraceEndDate,
         accessCode: newAccessCode,
         status: 'PENDING'
       },

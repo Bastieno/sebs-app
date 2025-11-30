@@ -5,37 +5,24 @@ import { ApiResponse } from '../types';
 // Global hub capacity limit
 const GLOBAL_HUB_CAPACITY = 40;
 
-// Helper to check time validity
+// Helper to check time validity based on timeSlot
 const isTimeWithinPlan = (plan: any, currentTime: Date): boolean => {
-  // Custom plans use datetime ranges instead of daily time slots
-  if (plan.isCustom && plan.startDateTime && plan.endDateTime) {
-    const startDateTime = new Date(plan.startDateTime);
-    const endDateTime = new Date(plan.endDateTime);
-    return currentTime >= startDateTime && currentTime <= endDateTime;
+  // If no timeSlot restriction, allow access 24/7
+  if (!plan.timeSlot || plan.timeSlot === 'ALL') return true;
+
+  const currentHour = currentTime.getHours();
+
+  // Check based on timeSlot enum values
+  switch (plan.timeSlot) {
+    case 'MORNING':
+      return currentHour >= 8 && currentHour < 12;
+    case 'AFTERNOON':
+      return currentHour >= 12 && currentHour < 17;
+    case 'NIGHT':
+      return currentHour >= 18 || currentHour < 6;
+    default:
+      return true;
   }
-  
-  // System plans use daily recurring time slots
-  if (!plan.timeStart || !plan.timeEnd) return true; // No time restriction
-
-  const formatTime = (timeStr: string) => {
-    const [hours, minutes] = (timeStr || '').split(':').map(Number);
-    const date = new Date();
-    date.setHours(hours || 0, minutes || 0, 0, 0);
-    return date;
-  };
-
-  const startTime = formatTime(plan.timeStart);
-  let endTime = formatTime(plan.timeEnd);
-
-  // Handle overnight plans
-  if (endTime <= startTime) {
-    endTime.setDate(endTime.getDate() + 1);
-    if (currentTime < startTime) {
-      currentTime.setDate(currentTime.getDate() + 1);
-    }
-  }
-
-  return currentTime >= startTime && currentTime <= endTime;
 };
 
 export const validateQrCode = async (req: Request, res: Response): Promise<any> => {
@@ -60,16 +47,9 @@ export const validateQrCode = async (req: Request, res: Response): Promise<any> 
       subscriptionDetails = subscription;
       const now = new Date();
       
-      // For custom plans, use plan's endDateTime; for system plans, use subscription's endDate
-      let isExpired: boolean;
-      if (subscription.plan.isCustom && subscription.plan.endDateTime) {
-        const endDateTime = new Date(subscription.plan.endDateTime);
-        isExpired = now > endDateTime;
-      } else {
-        const endDate = new Date(subscription.endDate);
-        const graceEndDate = subscription.graceEndDate ? new Date(subscription.graceEndDate) : null;
-        isExpired = now > endDate && (!graceEndDate || now > graceEndDate);
-      }
+      // Check if subscription has expired
+      const endDate = new Date(subscription.endDate);
+      const isExpired = now > endDate;
 
       // Get current total occupancy for global capacity check
       const plans = await prisma.plan.findMany({

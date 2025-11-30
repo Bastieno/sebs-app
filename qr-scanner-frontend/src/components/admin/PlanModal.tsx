@@ -13,8 +13,8 @@ interface Plan {
   id: string;
   name: string;
   price: number;
-  startDateTime?: string;
-  endDateTime?: string;
+  timeUnit: string;
+  duration: number;
   notes?: string;
 }
 
@@ -30,8 +30,8 @@ export default function PlanModal({ isOpen, onClose, plan, isCreating, onSuccess
   const [formData, setFormData] = useState({
     name: '',
     price: '',
-    startDateTime: '',
-    endDateTime: '',
+    timeUnit: 'HOURS',
+    duration: '',
     notes: ''
   });
   const [loading, setLoading] = useState(false);
@@ -41,20 +41,16 @@ export default function PlanModal({ isOpen, onClose, plan, isCreating, onSuccess
       setFormData({
         name: plan.name,
         price: plan.price.toString(),
-        startDateTime: plan.startDateTime 
-          ? new Date(plan.startDateTime).toISOString().slice(0, 16)
-          : '',
-        endDateTime: plan.endDateTime
-          ? new Date(plan.endDateTime).toISOString().slice(0, 16)
-          : '',
+        timeUnit: plan.timeUnit,
+        duration: plan.duration.toString(),
         notes: plan.notes || ''
       });
     } else {
       setFormData({
         name: '',
         price: '',
-        startDateTime: '',
-        endDateTime: '',
+        timeUnit: 'HOURS',
+        duration: '',
         notes: ''
       });
     }
@@ -108,7 +104,7 @@ export default function PlanModal({ isOpen, onClose, plan, isCreating, onSuccess
           toast.error(data.message || 'Failed to update custom plan');
         }
       }
-    } catch (error) {
+    } catch {
       toast.error('An error occurred');
     } finally {
       setLoading(false);
@@ -150,22 +146,30 @@ export default function PlanModal({ isOpen, onClose, plan, isCreating, onSuccess
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="startDateTime">Start Date & Time *</Label>
-              <Input
-                id="startDateTime"
-                type="datetime-local"
-                value={formData.startDateTime}
-                onChange={(e) => setFormData({ ...formData, startDateTime: e.target.value })}
+              <Label htmlFor="timeUnit">Time Unit *</Label>
+              <select
+                id="timeUnit"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                value={formData.timeUnit}
+                onChange={(e) => setFormData({ ...formData, timeUnit: e.target.value })}
                 required
-              />
+              >
+                <option value="HOURS">Hours</option>
+                <option value="DAYS">Days</option>
+                <option value="WEEK">Week</option>
+                <option value="MONTH">Month</option>
+                <option value="YEAR">Year</option>
+              </select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="endDateTime">End Date & Time *</Label>
+              <Label htmlFor="duration">Duration *</Label>
               <Input
-                id="endDateTime"
-                type="datetime-local"
-                value={formData.endDateTime}
-                onChange={(e) => setFormData({ ...formData, endDateTime: e.target.value })}
+                id="duration"
+                type="number"
+                min="1"
+                placeholder="e.g., 4"
+                value={formData.duration}
+                onChange={(e) => setFormData({ ...formData, duration: e.target.value })}
                 required
               />
             </div>
