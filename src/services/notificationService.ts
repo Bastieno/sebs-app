@@ -46,6 +46,7 @@ export const sendSms = async (options: SmsOptions) => {
 interface InAppNotificationOptions {
   userId: string;
   message: string;
+  type?: 'EXPIRING_SOON' | 'EXPIRED' | 'PAYMENT_RECEIVED' | 'GENERAL';
 }
 
 export const sendInAppNotification = async (options: InAppNotificationOptions) => {
@@ -54,6 +55,7 @@ export const sendInAppNotification = async (options: InAppNotificationOptions) =
       data: {
         userId: options.userId,
         message: options.message,
+        type: options.type || 'GENERAL',
         isRead: false,
       },
     });

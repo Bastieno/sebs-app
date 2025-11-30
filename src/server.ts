@@ -9,6 +9,7 @@ import { connectDatabase } from './config/database';
 import { CustomError } from './types';
 import swaggerUi from 'swagger-ui-express';
 import swaggerSpec from './config/swagger';
+import { initializeScheduledTasks } from './services/scheduler';
 
 // Load environment variables
 dotenv.config();
@@ -127,6 +128,9 @@ if (require.main === module) {
     // Initialize database connection
     if (process.env.DATABASE_URL) {
       await connectDatabase();
+      
+      // Initialize scheduled tasks after database is connected
+      initializeScheduledTasks();
     } else {
       console.log('⚠️  DATABASE_URL not configured - skipping database connection');
     }
