@@ -4,6 +4,10 @@ import {
   approvePayment, 
   rejectPayment,
   getAllUsers,
+  updateUser,
+  deleteUser,
+  searchUsers,
+  getUserSubscriptions,
   updateUserStatus,
   getAllSubscriptions,
   getAccessLogs,
@@ -105,6 +109,120 @@ router.put('/reject-payment/:paymentId', authenticate, requireAdmin, rejectPayme
  *         description: Unauthorized
  */
 router.get('/users', authenticate, requireAdmin, getAllUsers);
+
+/**
+ * @swagger
+ * /api/admin/users/{userId}:
+ *   put:
+ *     summary: Update user details
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               phone:
+ *                 type: string
+ *     responses:
+ *       '200':
+ *         description: User updated successfully
+ *       '401':
+ *         description: Unauthorized
+ *       '404':
+ *         description: User not found
+ *       '409':
+ *         description: Email already in use
+ */
+router.put('/users/:userId', authenticate, requireAdmin, updateUser);
+
+/**
+ * @swagger
+ * /api/admin/users/{userId}:
+ *   delete:
+ *     summary: Delete a user
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: User deleted successfully
+ *       '400':
+ *         description: Cannot delete user with active subscriptions
+ *       '401':
+ *         description: Unauthorized
+ *       '404':
+ *         description: User not found
+ */
+router.delete('/users/:userId', authenticate, requireAdmin, deleteUser);
+
+/**
+ * @swagger
+ * /api/admin/search-users:
+ *   get:
+ *     summary: Search users by name
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: name
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Name to search for
+ *     responses:
+ *       '200':
+ *         description: Search results returned successfully
+ *       '400':
+ *         description: Search name is required
+ *       '401':
+ *         description: Unauthorized
+ */
+router.get('/search-users', authenticate, requireAdmin, searchUsers);
+
+/**
+ * @swagger
+ * /api/admin/users/{userId}/subscriptions:
+ *   get:
+ *     summary: Get all subscriptions for a user
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: User subscriptions retrieved successfully
+ *       '401':
+ *         description: Unauthorized
+ *       '404':
+ *         description: User not found
+ */
+router.get('/users/:userId/subscriptions', authenticate, requireAdmin, getUserSubscriptions);
 
 /**
  * @swagger

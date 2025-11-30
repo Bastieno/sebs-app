@@ -23,13 +23,13 @@ export const getPendingPayments = async (req: Request, res: Response) => {
       orderBy: { uploadedAt: 'asc' }
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       message: 'Pending payments retrieved successfully',
       data: pendingPayments
     } as ApiResponse);
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Error fetching pending payments',
       error
@@ -551,11 +551,225 @@ export const getAllUsers = async (req: Request, res: Response) => {
         role: true,
         isActive: true,
         createdAt: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    return res.status(200).json({ success: true, data: users });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Error fetching users' });
+  }
+};
+
+// Update user details
+export const updateUser = async (req: Request, res: Response) => {
+  const { userId } = req.params;
+  const { name, email, phone } = req.body;
+
+  if (!req.user) {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+
+  try {
+    // Check if user exists
+    const existingUser = await prisma.user.findUnique({ where: { id: userId } });
+    if (!existingUser) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // If email is being updated, check if it's already in use
+    if (email && email !== existingUser.email) {
+      const emailInUse = await prisma.user.findUnique({ where: { email } });
+      if (emailInUse) {
+        return res.status(409).json({ 
+          success: false, 
+          message: 'Email already in use by another user' 
+        });
+      }
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        name: name || undefined,
+        email: email || undefined,
+        phone: phone || undefined
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true
       }
     });
-    res.status(200).json({ success: true, data: users });
+
+    return res.status(200).json({ success: true, data: updatedUser });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Error fetching users' });
+    console.error('Update user error:', error);
+    return res.status(500).json({ success: false, message: 'Error updating user' });
+  }
+};
+
+// Delete user
+export const deleteUser = async (req: Request, res: Response) => {
+  const { userId } = req.params;
+
+  if (!req.user) {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+
+  try {
+    // Check if user exists
+    const user = await prisma.user.findUnique({ 
+      where: { id: userId },
+      include: {
+        subscriptions: true
+      }
+    });
+    
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Check if user has active subscriptions
+    const hasActiveSubscriptions = user.subscriptions.some(
+      sub => sub.status === 'ACTIVE' || sub.status === 'IN_GRACE_PERIOD'
+    );
+
+    if (hasActiveSubscriptions) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Cannot delete user with active subscriptions. Please expire or cancel their subscriptions first.' 
+      });
+    }
+
+    await prisma.user.delete({ where: { id: userId } });
+
+    return res.status(200).json({ 
+      success: true, 
+      message: 'User deleted successfully' 
+    });
+  } catch (error) {
+    console.error('Delete user error:', error);
+    return res.status(500).json({ success: false, message: 'Error deleting user' });
+  }
+};
+
+// Search users by name
+export const searchUsers = async (req: Request, res: Response) => {
+  const { name } = req.query;
+
+  if (!req.user) {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+
+  if (!name || typeof name !== 'string') {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Search name is required' 
+    });
+  }
+
+  try {
+    const users = await prisma.user.findMany({
+      where: {
+        name: {
+          contains: name,
+          mode: 'insensitive'
+        }
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        isActive: true,
+        createdAt: true
+      },
+      orderBy: { name: 'asc' },
+      take: 20 // Limit results
+    });
+
+    return res.status(200).json({ success: true, data: users });
+  } catch (error) {
+    console.error('Search users error:', error);
+    return res.status(500).json({ success: false, message: 'Error searching users' });
+  }
+};
+
+// Get user subscriptions
+export const getUserSubscriptions = async (req: Request, res: Response) => {
+  const { userId } = req.params;
+
+  if (!req.user) {
+    return res.status(401).json({ success: false, message: 'Unauthorized' });
+  }
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const subscriptions = await prisma.subscription.findMany({
+      where: { userId },
+      include: {
+        plan: {
+          select: {
+            id: true,
+            name: true,
+            price: true,
+            isCustom: true,
+            startDateTime: true,
+            endDateTime: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // Calculate expiration status for each subscription
+    const now = new Date();
+    const subscriptionsWithStatus = subscriptions.map(sub => {
+      let isExpired: boolean;
+      if (sub.plan.isCustom && sub.plan.endDateTime) {
+        const endDateTime = new Date(sub.plan.endDateTime);
+        isExpired = now > endDateTime;
+      } else {
+        const endDate = new Date(sub.endDate);
+        const graceEndDate = sub.graceEndDate ? new Date(sub.graceEndDate) : null;
+        isExpired = now > endDate && (!graceEndDate || now > graceEndDate);
+      }
+
+      return {
+        ...sub,
+        isExpired
+      };
+    });
+
+    return res.status(200).json({ 
+      success: true, 
+      data: {
+        user,
+        subscriptions: subscriptionsWithStatus
+      }
+    });
+  } catch (error) {
+    console.error('Get user subscriptions error:', error);
+    return res.status(500).json({ success: false, message: 'Error fetching user subscriptions' });
   }
 };
 
@@ -569,9 +783,9 @@ export const updateUserStatus = async (req: Request, res: Response) => {
       where: { id: userId },
       data: { isActive }
     });
-    res.status(200).json({ success: true, data: user });
+    return res.status(200).json({ success: true, data: user });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Error updating user status' });
+    return res.status(500).json({ success: false, message: 'Error updating user status' });
   }
 };
 
@@ -581,9 +795,9 @@ export const getAllSubscriptions = async (req: Request, res: Response) => {
     const subscriptions = await prisma.subscription.findMany({
       include: { user: true, plan: true }
     });
-    res.status(200).json({ success: true, data: subscriptions });
+    return res.status(200).json({ success: true, data: subscriptions });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Error fetching subscriptions' });
+    return res.status(500).json({ success: false, message: 'Error fetching subscriptions' });
   }
 };
 
@@ -594,9 +808,9 @@ export const getAccessLogs = async (req: Request, res: Response) => {
       include: { user: true, subscription: true },
       orderBy: { timestamp: 'desc' }
     });
-    res.status(200).json({ success: true, data: logs });
+    return res.status(200).json({ success: true, data: logs });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Error fetching access logs' });
+    return res.status(500).json({ success: false, message: 'Error fetching access logs' });
   }
 };
 
@@ -610,7 +824,7 @@ export const getDashboardAnalytics = async (req: Request, res: Response) => {
       where: { status: 'APPROVED' }
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       data: {
         totalUsers,
@@ -619,7 +833,7 @@ export const getDashboardAnalytics = async (req: Request, res: Response) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Error fetching analytics' });
+    return res.status(500).json({ success: false, message: 'Error fetching analytics' });
   }
 };
 
