@@ -1,13 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Trash2, Plus } from 'lucide-react';
+import { Pencil, Trash2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
+import PlanModal from './PlanModal';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
 
@@ -30,92 +29,38 @@ interface ManagePlansProps {
 }
 
 export default function ManagePlans({ plans, onRefresh }: ManagePlansProps) {
-  const [loading, setLoading] = useState(false);
-  const [customPlanData, setCustomPlanData] = useState({
-    name: '',
-    price: '',
-    startDateTime: '',
-    endDateTime: '',
-    notes: ''
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
+
+  // Sort plans: Custom plans first, then system plans
+  const sortedPlans = [...plans].sort((a, b) => {
+    // Custom plans come first
+    if (a.isCustom && !b.isCustom) return -1;
+    if (!a.isCustom && b.isCustom) return 1;
+    // Within same type, sort alphabetically
+    return a.name.localeCompare(b.name);
   });
-  const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
 
-  const handleCreateCustomPlan = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      const adminToken = localStorage.getItem('adminToken');
-      const response = await fetch(`${API_URL}/api/plans/custom`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${adminToken}`
-        },
-        body: JSON.stringify(customPlanData)
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        toast.success('Custom plan created successfully');
-        setCustomPlanData({ name: '', price: '', startDateTime: '', endDateTime: '', notes: '' });
-        onRefresh();
-      } else {
-        toast.error(`Failed to create custom plan: ${data.message || 'Unknown error'}`);
-      }
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Please check your connection';
-      toast.error(`Error creating custom plan: ${errorMsg}`);
-    } finally {
-      setLoading(false);
-    }
+  const handleAddPlan = () => {
+    setIsCreating(true);
+    setSelectedPlan(null);
+    setIsModalOpen(true);
   };
 
-  const handleUpdateCustomPlan = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingPlan) return;
-    setLoading(true);
-
-    try {
-      const adminToken = localStorage.getItem('adminToken');
-      const response = await fetch(`${API_URL}/api/plans/custom/${editingPlan.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${adminToken}`
-        },
-        body: JSON.stringify({
-          name: editingPlan.name,
-          price: editingPlan.price,
-          startDateTime: editingPlan.startDateTime,
-          endDateTime: editingPlan.endDateTime,
-          notes: editingPlan.notes
-        })
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        toast.success('Custom plan updated successfully');
-        setEditingPlan(null);
-        onRefresh();
-      } else {
-        toast.error(`Failed to update custom plan: ${data.message || 'Unknown error'}`);
-      }
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Please check your connection';
-      toast.error(`Error updating custom plan: ${errorMsg}`);
-    } finally {
-      setLoading(false);
-    }
+  const handleEditPlan = (plan: Plan) => {
+    setIsCreating(false);
+    setSelectedPlan(plan);
+    setIsModalOpen(true);
   };
 
-  const handleDeleteCustomPlan = async (planId: string) => {
-    if (!confirm('Are you sure you want to delete this custom plan?')) return;
-    
-    setLoading(true);
+  const handleDeletePlan = async (planId: string) => {
+    if (!confirm('Are you sure you want to delete this custom plan? This action cannot be undone.')) {
+      return;
+    }
 
+    setDeleteLoading(planId);
     try {
       const adminToken = localStorage.getItem('adminToken');
       const response = await fetch(`${API_URL}/api/plans/custom/${planId}`, {
@@ -131,257 +76,135 @@ export default function ManagePlans({ plans, onRefresh }: ManagePlansProps) {
         toast.success('Custom plan deleted successfully');
         onRefresh();
       } else {
-        toast.error(`Failed to delete custom plan: ${data.message || 'Unknown error'}`);
+        toast.error(data.message || 'Failed to delete custom plan');
       }
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Please check your connection';
-      toast.error(`Error deleting custom plan: ${errorMsg}`);
+      toast.error('Error deleting custom plan');
     } finally {
-      setLoading(false);
+      setDeleteLoading(null);
     }
   };
 
-  const customPlans = plans.filter(plan => plan.isCustom);
-  const systemPlans = plans.filter(plan => !plan.isCustom);
+  const formatDateTime = (dateString?: string) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
 
   return (
-    <div className="space-y-6">
-      {/* Create Custom Plan Form */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Plus className="h-5 w-5" />
-            Create Custom Plan
-          </CardTitle>
-          <CardDescription>
-            Create a new custom plan with specific time slots and pricing
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleCreateCustomPlan} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="planName">Plan Name *</Label>
-                <Input
-                  id="planName"
-                  placeholder="e.g., Special Evening Plan"
-                  value={customPlanData.name}
-                  onChange={(e) => setCustomPlanData({ ...customPlanData, name: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="price">Price (₦) *</Label>
-                <Input
-                  id="price"
-                  type="number"
-                  placeholder="e.g., 2000"
-                  value={customPlanData.price}
-                  onChange={(e) => setCustomPlanData({ ...customPlanData, price: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="startDateTime">Start Date & Time *</Label>
-                <Input
-                  id="startDateTime"
-                  type="datetime-local"
-                  value={customPlanData.startDateTime}
-                  onChange={(e) => setCustomPlanData({ ...customPlanData, startDateTime: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="endDateTime">End Date & Time *</Label>
-                <Input
-                  id="endDateTime"
-                  type="datetime-local"
-                  value={customPlanData.endDateTime}
-                  onChange={(e) => setCustomPlanData({ ...customPlanData, endDateTime: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="notes">Notes (Optional)</Label>
-                <Input
-                  id="notes"
-                  placeholder="e.g., Available on weekends only"
-                  value={customPlanData.notes}
-                  onChange={(e) => setCustomPlanData({ ...customPlanData, notes: e.target.value })}
-                />
-              </div>
-            </div>
-            <Button type="submit" disabled={loading} className="w-full">
-              {loading ? 'Creating...' : 'Create Custom Plan'}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold">Plans</h2>
+          <p className="text-sm text-gray-600">Manage system and custom plans</p>
+        </div>
+        <Button onClick={handleAddPlan}>
+          <Plus className="h-4 w-4 mr-2" />
+          Create Custom Plan
+        </Button>
+      </div>
 
-      {/* Custom Plans List */}
-      {customPlans.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Custom Plans</CardTitle>
-            <CardDescription>
-              Manage your custom plans - edit or delete as needed
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {customPlans.map((plan) => (
-                <div
-                  key={plan.id}
-                  className="border rounded-lg p-4 flex items-start justify-between"
-                >
-                  {editingPlan?.id === plan.id ? (
-                    <form onSubmit={handleUpdateCustomPlan} className="flex-1 space-y-3">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div>
-                          <Label>Plan Name</Label>
-                          <Input
-                            value={editingPlan.name}
-                            onChange={(e) => setEditingPlan({ ...editingPlan, name: e.target.value })}
-                            required
-                          />
-                        </div>
-                        <div>
-                          <Label>Price (₦)</Label>
-                          <Input
-                            type="number"
-                            value={editingPlan.price}
-                            onChange={(e) => setEditingPlan({ ...editingPlan, price: parseFloat(e.target.value) })}
-                            required
-                          />
-                        </div>
-                        <div>
-                          <Label>Start Date & Time</Label>
-                          <Input
-                            type="datetime-local"
-                            value={editingPlan.startDateTime || ''}
-                            onChange={(e) => setEditingPlan({ ...editingPlan, startDateTime: e.target.value })}
-                            required
-                          />
-                        </div>
-                        <div>
-                          <Label>End Date & Time</Label>
-                          <Input
-                            type="datetime-local"
-                            value={editingPlan.endDateTime || ''}
-                            onChange={(e) => setEditingPlan({ ...editingPlan, endDateTime: e.target.value })}
-                            required
-                          />
-                        </div>
-                        <div className="md:col-span-2">
-                          <Label>Notes</Label>
-                          <Input
-                            value={editingPlan.notes || ''}
-                            onChange={(e) => setEditingPlan({ ...editingPlan, notes: e.target.value })}
-                          />
-                        </div>
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Plan Name</TableHead>
+              <TableHead>Type</TableHead>
+              <TableHead>Price</TableHead>
+              <TableHead>Duration</TableHead>
+              <TableHead>Time/Period</TableHead>
+              <TableHead>Notes</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {sortedPlans.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                  No plans found
+                </TableCell>
+              </TableRow>
+            ) : (
+              sortedPlans.map((plan) => (
+                <TableRow key={plan.id} className={plan.isCustom ? '' : 'bg-gray-50'}>
+                  <TableCell className="font-medium">{plan.name}</TableCell>
+                  <TableCell>
+                    <Badge variant={plan.isCustom ? 'default' : 'secondary'}>
+                      {plan.isCustom ? 'Custom' : 'System'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>₦{plan.price.toLocaleString()}</TableCell>
+                  <TableCell>
+                    {plan.durationType ? (
+                      <Badge variant="outline">{plan.durationType}</Badge>
+                    ) : (
+                      'Custom'
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {plan.isCustom ? (
+                      <div className="text-xs space-y-1">
+                        <div>Start: {formatDateTime(plan.startDateTime)}</div>
+                        <div>End: {formatDateTime(plan.endDateTime)}</div>
                       </div>
-                      <div className="flex gap-2">
-                        <Button type="submit" size="sm" disabled={loading}>
-                          {loading ? 'Saving...' : 'Save'}
-                        </Button>
+                    ) : plan.timeStart && plan.timeEnd ? (
+                      `${plan.timeStart} - ${plan.timeEnd}`
+                    ) : (
+                      'All Day'
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {plan.notes ? (
+                      <span className="text-xs text-gray-600 italic">{plan.notes}</span>
+                    ) : (
+                      <span className="text-xs text-gray-400">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {plan.isCustom ? (
+                      <div className="flex justify-end gap-2">
                         <Button
-                          type="button"
-                          size="sm"
                           variant="outline"
-                          onClick={() => setEditingPlan(null)}
-                          disabled={loading}
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </form>
-                  ) : (
-                    <>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold">{plan.name}</h3>
-                          <Badge variant="secondary">Custom</Badge>
-                        </div>
-                        <div className="text-sm text-gray-600 space-y-1">
-                          <p>Price: ₦{plan.price}</p>
-                          {plan.startDateTime && plan.endDateTime && (
-                            <p>Period: {new Date(plan.startDateTime).toLocaleString()} - {new Date(plan.endDateTime).toLocaleString()}</p>
-                          )}
-                          {plan.notes && <p className="text-xs italic">Note: {plan.notes}</p>}
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
                           size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            // Format datetime values for datetime-local input (YYYY-MM-DDTHH:mm)
-                            const formattedPlan = {
-                              ...plan,
-                              startDateTime: plan.startDateTime 
-                                ? new Date(plan.startDateTime).toISOString().slice(0, 16)
-                                : '',
-                              endDateTime: plan.endDateTime
-                                ? new Date(plan.endDateTime).toISOString().slice(0, 16)
-                                : ''
-                            };
-                            setEditingPlan(formattedPlan);
-                          }}
-                          disabled={loading}
+                          onClick={() => handleEditPlan(plan)}
                         >
-                          <Edit className="h-4 w-4" />
+                          <Pencil className="h-3 w-3" />
                         </Button>
                         <Button
-                          size="sm"
                           variant="destructive"
-                          onClick={() => handleDeleteCustomPlan(plan.id)}
-                          disabled={loading}
+                          size="sm"
+                          onClick={() => handleDeletePlan(plan.id)}
+                          disabled={deleteLoading === plan.id}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-3 w-3" />
                         </Button>
                       </div>
-                    </>
-                  )}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+                    ) : (
+                      <span className="text-xs text-gray-400">Read-only</span>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
-      {/* System Plans List (Read-Only) */}
-      <Card>
-        <CardHeader>
-          <CardTitle>System Plans</CardTitle>
-          <CardDescription>
-            Default plans (cannot be edited or deleted)
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {systemPlans.map((plan) => (
-              <div
-                key={plan.id}
-                className="border rounded-lg p-4 bg-gray-50"
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <h3 className="font-semibold">{plan.name}</h3>
-                  <Badge>System</Badge>
-                  {plan.durationType && (
-                    <Badge variant="outline">{plan.durationType}</Badge>
-                  )}
-                </div>
-                <div className="text-sm text-gray-600 space-y-1">
-                  <p>Price: ₦{plan.price}</p>
-                  {plan.timeStart && plan.timeEnd && (
-                    <p>Time: {plan.timeStart} - {plan.timeEnd}</p>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <PlanModal
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedPlan(null);
+        }}
+        plan={selectedPlan}
+        isCreating={isCreating}
+        onSuccess={onRefresh}
+      />
     </div>
   );
 }
