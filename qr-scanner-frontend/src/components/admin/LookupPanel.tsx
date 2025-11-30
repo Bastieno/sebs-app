@@ -305,7 +305,7 @@ export default function LookupPanel() {
                 </div>
                 <div className="flex">
                   <span className="text-gray-600 w-40">Access Code:</span>
-                  <span className="font-mono font-bold text-lg">{lookupResult.subscription.accessCode}</span>
+                  <span className="font-mono font-bold">{lookupResult.subscription.accessCode}</span>
                 </div>
                 <div className="flex">
                   <span className="text-gray-600 w-40">Time Slot:</span>

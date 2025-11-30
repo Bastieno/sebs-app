@@ -154,6 +154,7 @@ export default function PlanModal({ isOpen, onClose, plan, isCreating, onSuccess
                 onChange={(e) => setFormData({ ...formData, timeUnit: e.target.value })}
                 required
               >
+                <option value="MINUTES">Minutes</option>
                 <option value="HOURS">Hours</option>
                 <option value="DAYS">Days</option>
                 <option value="WEEK">Week</option>

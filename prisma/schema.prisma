@@ -124,6 +124,7 @@ enum Role {
 }
 
 enum TimeUnit {
+  MINUTES
   HOURS
   DAYS
   WEEK

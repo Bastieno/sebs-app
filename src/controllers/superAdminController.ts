@@ -110,6 +110,12 @@ export const createPlan = async (req: Request, res: Response): Promise<Response>
     return res.status(400).json({ message: 'Name, price, time unit, and duration are required' });
   }
 
+  // Validate timeUnit
+  const validTimeUnits = ['MINUTES', 'HOURS', 'DAYS', 'WEEK', 'MONTH', 'YEAR'];
+  if (!validTimeUnits.includes(timeUnit)) {
+    return res.status(400).json({ message: 'Invalid time unit. Must be one of: MINUTES, HOURS, DAYS, WEEK, MONTH, YEAR' });
+  }
+
   try {
     const newPlan = await prisma.plan.create({
       data: {
@@ -130,6 +136,14 @@ export const createPlan = async (req: Request, res: Response): Promise<Response>
 export const updatePlan = async (req: Request, res: Response): Promise<Response> => {
   const { id } = req.params;
   const { name, price, timeUnit, duration, maxCapacity, isActive } = req.body;
+
+  // Validate timeUnit if provided
+  if (timeUnit) {
+    const validTimeUnits = ['MINUTES', 'HOURS', 'DAYS', 'WEEK', 'MONTH', 'YEAR'];
+    if (!validTimeUnits.includes(timeUnit)) {
+      return res.status(400).json({ message: 'Invalid time unit. Must be one of: MINUTES, HOURS, DAYS, WEEK, MONTH, YEAR' });
+    }
+  }
 
   try {
     const updatedPlan = await prisma.plan.update({

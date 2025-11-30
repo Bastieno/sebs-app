@@ -84,6 +84,7 @@ export default function ManagePlans({ plans, onRefresh }: ManagePlansProps) {
 
   const formatDuration = (timeUnit: string, duration: number) => {
     const unitMap: { [key: string]: string } = {
+      MINUTES: duration === 1 ? 'Minute' : 'Minutes',
       HOURS: duration === 1 ? 'Hour' : 'Hours',
       DAYS: duration === 1 ? 'Day' : 'Days',
       WEEK: duration === 1 ? 'Week' : 'Weeks',

@@ -179,11 +179,11 @@ export const createCustomPlan = async (req: Request, res: Response): Promise<voi
     }
 
     // Validate timeUnit
-    const validTimeUnits = ['HOURS', 'DAYS', 'WEEK', 'MONTH', 'YEAR'];
+    const validTimeUnits = ['MINUTES', 'HOURS', 'DAYS', 'WEEK', 'MONTH', 'YEAR'];
     if (!validTimeUnits.includes(timeUnit)) {
       res.status(400).json({
         success: false,
-        message: 'Invalid time unit. Must be one of: HOURS, DAYS, WEEK, MONTH, YEAR'
+        message: 'Invalid time unit. Must be one of: MINUTES, HOURS, DAYS, WEEK, MONTH, YEAR'
       } as ApiResponse);
       return;
     }
@@ -272,11 +272,11 @@ export const updateCustomPlan = async (req: Request, res: Response): Promise<voi
 
     // Validate timeUnit if provided
     if (timeUnit) {
-      const validTimeUnits = ['HOURS', 'DAYS', 'WEEK', 'MONTH', 'YEAR'];
+      const validTimeUnits = ['MINUTES', 'HOURS', 'DAYS', 'WEEK', 'MONTH', 'YEAR'];
       if (!validTimeUnits.includes(timeUnit)) {
         res.status(400).json({
           success: false,
-          message: 'Invalid time unit. Must be one of: HOURS, DAYS, WEEK, MONTH, YEAR'
+          message: 'Invalid time unit. Must be one of: MINUTES, HOURS, DAYS, WEEK, MONTH, YEAR'
         } as ApiResponse);
         return;
       }

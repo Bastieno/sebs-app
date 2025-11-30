@@ -16,6 +16,9 @@ const calculateEndDate = (startDate: Date, timeUnit: string, duration: number): 
   const endDate = new Date(startDate);
   
   switch (timeUnit) {
+    case 'MINUTES':
+      endDate.setMinutes(endDate.getMinutes() + duration);
+      break;
     case 'HOURS':
       endDate.setHours(endDate.getHours() + duration);
       break;
@@ -32,7 +35,7 @@ const calculateEndDate = (startDate: Date, timeUnit: string, duration: number): 
       endDate.setFullYear(endDate.getFullYear() + duration);
       break;
     default:
-      endDate.setDate(endDate.getDate() + 1);
+      throw new Error(`Invalid time unit: ${timeUnit}`);
   }
   
   return endDate;
