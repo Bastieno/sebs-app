@@ -77,6 +77,9 @@ export default function LookupPanel() {
     e.preventDefault();
     setLoading(true);
     setLookupResult(null);
+    setSearchResults([]);
+    setUserSubscriptions([]);
+    setSelectedUserId('');
 
     try {
       const adminToken = localStorage.getItem('adminToken');
@@ -106,6 +109,8 @@ export default function LookupPanel() {
     setLoading(true);
     setSearchResults([]);
     setUserSubscriptions([]);
+    setSelectedUserId('');
+    setLookupResult(null);
 
     try {
       const adminToken = localStorage.getItem('adminToken');
@@ -206,7 +211,13 @@ export default function LookupPanel() {
           {/* Search Type Toggle */}
           <div className="flex gap-2 border-b">
             <button
-              onClick={() => setSearchType('accessCode')}
+              onClick={() => {
+                setSearchType('accessCode');
+                setSearchResults([]);
+                setUserSubscriptions([]);
+                setSelectedUserId('');
+                setLookupResult(null);
+              }}
               className={`px-4 py-2 font-medium transition-colors ${
                 searchType === 'accessCode'
                   ? 'border-b-2 border-blue-600 text-blue-600'
@@ -216,7 +227,13 @@ export default function LookupPanel() {
               By Access Code
             </button>
             <button
-              onClick={() => setSearchType('userName')}
+              onClick={() => {
+                setSearchType('userName');
+                setLookupResult(null);
+                setSearchResults([]);
+                setUserSubscriptions([]);
+                setSelectedUserId('');
+              }}
               className={`px-4 py-2 font-medium transition-colors ${
                 searchType === 'userName'
                   ? 'border-b-2 border-blue-600 text-blue-600'
