@@ -61,14 +61,6 @@ export default function SubscriptionTable({ subscriptions, onRefresh }: Subscrip
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
   const formatDateTime = (dateString: string) => {
     return new Date(dateString).toLocaleString('en-US', {
       year: 'numeric',
@@ -78,6 +70,29 @@ export default function SubscriptionTable({ subscriptions, onRefresh }: Subscrip
       minute: '2-digit',
       hour12: true
     });
+  };
+
+  const formatTimeRemaining = (endDate: string) => {
+    const now = new Date();
+    const end = new Date(endDate);
+    const diff = end.getTime() - now.getTime();
+
+    if (diff <= 0) {
+      return 'Expired';
+    }
+
+    const years = Math.floor(diff / (1000 * 60 * 60 * 24 * 365));
+    const days = Math.floor((diff % (1000 * 60 * 60 * 24 * 365)) / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+    const parts = [];
+    if (years > 0) parts.push(`${years}yr`);
+    if (days > 0) parts.push(`${days}d`);
+    if (hours > 0) parts.push(`${hours}h`);
+    if (minutes > 0) parts.push(`${minutes}m`);
+
+    return parts.length > 0 ? parts.join(':') : 'Less than a minute';
   };
 
   return (
@@ -165,29 +180,90 @@ export default function SubscriptionTable({ subscriptions, onRefresh }: Subscrip
         onSuccess={onRefresh}
       />
 
-      {/* View Details Dialog - TODO: implement if needed */}
+      {/* View Details Dialog */}
       {selectedSubscription && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4">
-            <h3 className="text-lg font-bold mb-4">Subscription Details</h3>
-            <div className="space-y-2 text-sm">
-              <div className="flex">
-                <span className="text-gray-600 w-40">User:</span>
-                <span className="font-medium">{selectedSubscription.user.name}</span>
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50" onClick={() => setSelectedSubscription(null)}>
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold">Subscription Details</h3>
+              {getStatusBadge(selectedSubscription.status, new Date() > new Date(selectedSubscription.endDate))}
+            </div>
+            
+            <div className="space-y-4">
+              {/* User Information */}
+              <div>
+                <h4 className="font-semibold mb-2">User Information</h4>
+                <div className="space-y-1 text-sm">
+                  <div className="flex">
+                    <span className="text-gray-600 w-40">Name:</span>
+                    <span className="font-medium">{selectedSubscription.user.name}</span>
+                  </div>
+                  <div className="flex">
+                    <span className="text-gray-600 w-40">Email:</span>
+                    <span className="font-medium">{selectedSubscription.user.email}</span>
+                  </div>
+                </div>
               </div>
-              <div className="flex">
-                <span className="text-gray-600 w-40">Plan:</span>
-                <span className="font-medium">{selectedSubscription.plan.name}</span>
+
+              {/* Subscription Information */}
+              <div>
+                <h4 className="font-semibold mb-2">Subscription Information</h4>
+                <div className="space-y-1 text-sm">
+                  <div className="flex">
+                    <span className="text-gray-600 w-40">Plan:</span>
+                    <span className="font-medium">{selectedSubscription.plan.name}</span>
+                  </div>
+                  <div className="flex">
+                    <span className="text-gray-600 w-40">Price:</span>
+                    <span className="font-medium">₦{selectedSubscription.plan.price}</span>
+                  </div>
+                  <div className="flex">
+                    <span className="text-gray-600 w-40">Access Code:</span>
+                    <span className="font-mono font-bold">{selectedSubscription.accessCode}</span>
+                  </div>
+                  {selectedSubscription.timeSlot && (
+                    <div className="flex">
+                      <span className="text-gray-600 w-40">Time Slot:</span>
+                      <span className="font-medium">{selectedSubscription.timeSlot}</span>
+                    </div>
+                  )}
+                  <div className="flex">
+                    <span className="text-gray-600 w-40">Start Date & Time:</span>
+                    <span className="font-medium">{formatDateTime(selectedSubscription.startDate)}</span>
+                  </div>
+                  <div className="flex">
+                    <span className="text-gray-600 w-40">End Date & Time:</span>
+                    <span className="font-medium">{formatDateTime(selectedSubscription.endDate)}</span>
+                  </div>
+                  <div className="flex">
+                    <span className="text-gray-600 w-40">Time Remaining:</span>
+                    <span className={`font-medium ${new Date() > new Date(selectedSubscription.endDate) ? 'text-red-600' : 'text-green-600'}`}>
+                      {formatTimeRemaining(selectedSubscription.endDate)}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div className="flex">
-                <span className="text-gray-600 w-40">Access Code:</span>
-                <span className="font-mono font-bold">{selectedSubscription.accessCode}</span>
-              </div>
-              <div className="flex">
-                <span className="text-gray-600 w-40">Status:</span>
-                {getStatusBadge(selectedSubscription.status, new Date() > new Date(selectedSubscription.endDate))}
+
+              {/* Status Indicator */}
+              <div className={`flex items-center gap-2 p-3 rounded ${new Date() > new Date(selectedSubscription.endDate) ? 'bg-red-50' : 'bg-green-50'}`}>
+                {new Date() > new Date(selectedSubscription.endDate) ? (
+                  <>
+                    <svg className="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-sm font-medium text-red-700">Subscription Expired</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="text-sm font-medium text-green-700">Subscription Active</span>
+                  </>
+                )}
               </div>
             </div>
+
             <div className="mt-6 flex justify-end">
               <Button onClick={() => setSelectedSubscription(null)}>Close</Button>
             </div>

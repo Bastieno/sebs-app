@@ -33,10 +33,33 @@ export async function checkExpiringSubscriptions() {
     // Send WhatsApp notifications for subscriptions expiring soon
     for (const subscription of subscriptionsExpiringSoon) {
       try {
-        const template = templates.subscriptionExpiring15Min(
+        // Calculate actual time remaining
+        const timeRemainingMs = subscription.endDate.getTime() - now.getTime();
+        const minutesRemaining = Math.floor(timeRemainingMs / (1000 * 60));
+        
+        // Format time remaining message
+        let timeRemainingText: string;
+        if (minutesRemaining < 1) {
+          timeRemainingText = 'less than a minute';
+        } else if (minutesRemaining === 1) {
+          timeRemainingText = '1 minute';
+        } else if (minutesRemaining < 60) {
+          timeRemainingText = `${minutesRemaining} minutes`;
+        } else {
+          const hours = Math.floor(minutesRemaining / 60);
+          const mins = minutesRemaining % 60;
+          if (mins === 0) {
+            timeRemainingText = hours === 1 ? '1 hour' : `${hours} hours`;
+          } else {
+            timeRemainingText = `${hours} hour${hours > 1 ? 's' : ''} and ${mins} minute${mins > 1 ? 's' : ''}`;
+          }
+        }
+
+        const template = templates.subscriptionExpiringSoon(
           subscription.user.name,
           subscription.plan.name,
-          subscription.accessCode
+          subscription.accessCode,
+          timeRemainingText
         );
 
         await sendInAppNotification({
@@ -45,9 +68,9 @@ export async function checkExpiringSubscriptions() {
           type: 'EXPIRING_SOON'
         });
 
-        console.log(`Sent in-app expiration warning to ${subscription.user.name}`);
+        console.log(`Sent in-app expiration warning to ${subscription.user.name} (${timeRemainingText} remaining)`);
       } catch (error) {
-        console.error(`Failed to send WhatsApp to ${subscription.user.phone}:`, error);
+        console.error(`Failed to send notification to ${subscription.user.phone}:`, error);
       }
     }
 

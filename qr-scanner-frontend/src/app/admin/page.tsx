@@ -200,7 +200,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex gap-2 border-b overflow-x-auto">
+      <div className="pt-1 flex gap-2 border-b overflow-x-auto">
         <button
           onClick={() => setActiveTab('users')}
           className={`px-4 py-2 font-medium transition-colors whitespace-nowrap ${

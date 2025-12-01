@@ -94,11 +94,11 @@ export const templates = {
     sms: `Hi ${userName}, your ${planName} subscription has expired. Your grace period ends on ${graceEndDate}. Please renew now.`
   }),
 
-  subscriptionExpiring15Min: (userName: string, planName: string, accessCode: string) => ({
-    inApp: `Hi ${userName}, your ${planName} subscription will expire in 15 minutes. Access Code: ${accessCode}. Please renew to continue using Seb's Hub.`
+  subscriptionExpiringSoon: (userName: string, planName: string, accessCode: string, timeRemaining: string) => ({
+    inApp: `Hi ${userName}, your ${planName} subscription will expire in ${timeRemaining}. Access Code: ${accessCode}. Please renew to continue using Seb's Hub.`
   }),
 
-  subscriptionExpiringSoon: (userName: string, planName: string, expiryDate: string) => ({
+  subscriptionExpiringLater: (userName: string, planName: string, expiryDate: string) => ({
     inApp: `Hi ${userName}, your ${planName} subscription will expire on ${expiryDate}. Please renew to continue using Seb's Hub.`
   }),
 
