@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -72,6 +72,10 @@ export default function LookupPanel() {
   const [selectedUserId, setSelectedUserId] = useState('');
   const [lookupResult, setLookupResult] = useState<LookupResult | null>(null);
   const [userSubscriptions, setUserSubscriptions] = useState<UserSubscription[]>([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const skipSearchRef = useRef(false);
 
   const handleSearchByAccessCode = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,17 +108,18 @@ export default function LookupPanel() {
     }
   };
 
-  const handleSearchUserByName = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setSearchResults([]);
-    setUserSubscriptions([]);
-    setSelectedUserId('');
-    setLookupResult(null);
+  // Debounced search function
+  const searchUsers = useCallback(async (searchTerm: string) => {
+    if (!searchTerm.trim()) {
+      setSearchResults([]);
+      setShowDropdown(false);
+      return;
+    }
 
+    setIsSearching(true);
     try {
       const adminToken = localStorage.getItem('adminToken');
-      const response = await fetch(`${API_URL}/api/admin/search-users?name=${encodeURIComponent(userName)}`, {
+      const response = await fetch(`${API_URL}/api/admin/search-users?name=${encodeURIComponent(searchTerm)}`, {
         headers: {
           'Authorization': `Bearer ${adminToken}`
         }
@@ -124,22 +129,56 @@ export default function LookupPanel() {
 
       if (data.success) {
         setSearchResults(data.data);
-        if (data.data.length === 0) {
-          toast.info('No users found with that name');
-        }
+        setShowDropdown(data.data.length > 0);
       } else {
-        toast.error('Error searching users');
+        setSearchResults([]);
+        setShowDropdown(false);
       }
     } catch {
-      toast.error('Error searching users');
+      setSearchResults([]);
+      setShowDropdown(false);
     } finally {
-      setLoading(false);
+      setIsSearching(false);
     }
-  };
+  }, []);
 
-  const handleSelectUser = async (userId: string) => {
+  // Debounce effect
+  useEffect(() => {
+    if (searchType !== 'userName') return;
+    
+    // Skip search if we just selected a user
+    if (skipSearchRef.current) {
+      skipSearchRef.current = false;
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      searchUsers(userName);
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [userName, searchType, searchUsers]);
+
+  // Click outside to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSelectUser = async (userId: string, userName: string) => {
+    skipSearchRef.current = true; // Skip the next search triggered by userName change
     setSelectedUserId(userId);
+    setUserName(userName);
+    setShowDropdown(false);
+    setSearchResults([]); // Clear search results to prevent dropdown from reopening
     setLoading(true);
+    setUserSubscriptions([]);
 
     try {
       const adminToken = localStorage.getItem('adminToken');
@@ -263,33 +302,41 @@ export default function LookupPanel() {
             </form>
           )}
 
-          {/* User Name Search */}
+          {/* User Name Search with Autocomplete */}
           {searchType === 'userName' && (
-            <form onSubmit={handleSearchUserByName} className="space-y-4">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Enter user name"
-                  value={userName}
-                  onChange={(e) => setUserName(e.target.value)}
-                  required
-                />
-                <Button type="submit" disabled={loading}>
-                  <Search className="h-4 w-4 mr-2" />
-                  {loading ? 'Searching...' : 'Search'}
-                </Button>
-              </div>
+            <div className="space-y-4" ref={dropdownRef}>
+              <div className="relative">
+                <div className="relative">
+                  <Input
+                    placeholder="Start typing to search for a user..."
+                    value={userName}
+                    onChange={(e) => {
+                      setUserName(e.target.value);
+                      setUserSubscriptions([]);
+                      setSelectedUserId('');
+                    }}
+                    onFocus={() => {
+                      if (searchResults.length > 0) {
+                        setShowDropdown(true);
+                      }
+                    }}
+                  />
+                  {isSearching && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      <div className="h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                  )}
+                </div>
 
-              {/* Search Results */}
-              {searchResults.length > 0 && (
-                <div className="space-y-2">
-                  <Label>Select a user:</Label>
-                  <div className="border rounded-md divide-y">
+                {/* Autocomplete Dropdown */}
+                {showDropdown && searchResults.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border rounded-md shadow-lg max-h-90 overflow-auto">
                     {searchResults.map((user) => (
                       <button
                         key={user.id}
                         type="button"
-                        onClick={() => handleSelectUser(user.id)}
-                        className={`w-full text-left p-3 hover:bg-gray-50 transition-colors ${
+                        onClick={() => handleSelectUser(user.id, user.name)}
+                        className={`w-full text-left p-3 hover:bg-gray-50 transition-colors border-b last:border-b-0 ${
                           selectedUserId === user.id ? 'bg-blue-50' : ''
                         }`}
                       >
@@ -298,9 +345,9 @@ export default function LookupPanel() {
                       </button>
                     ))}
                   </div>
-                </div>
-              )}
-            </form>
+                )}
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
