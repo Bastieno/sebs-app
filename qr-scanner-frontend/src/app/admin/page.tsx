@@ -74,11 +74,20 @@ export default function AdminDashboard() {
     fetchNotifications();
     
     // Poll for new notifications every 30 seconds
-    const interval = setInterval(() => {
+    const notificationInterval = setInterval(() => {
       fetchNotifications();
     }, 30000);
+
+    // Poll for subscription updates every 60 seconds (1 minute)
+    // This ensures expired subscriptions are automatically updated
+    const subscriptionInterval = setInterval(() => {
+      fetchSubscriptions();
+    }, 60000);
     
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(notificationInterval);
+      clearInterval(subscriptionInterval);
+    };
   }, []);
 
   const fetchUsers = async () => {

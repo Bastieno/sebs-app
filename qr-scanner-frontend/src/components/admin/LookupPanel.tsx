@@ -169,6 +169,17 @@ export default function LookupPanel() {
     });
   };
 
+  const formatDateTime = (dateString: string) => {
+    return new Date(dateString).toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
   const formatTimeRemaining = (endDate: string) => {
     const now = new Date();
     const end = new Date(endDate);
@@ -291,8 +302,9 @@ export default function LookupPanel() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               Subscription Details
-              <Badge variant={lookupResult.subscription.isExpired ? 'destructive' : 'default'}>
-                {lookupResult.subscription.status}
+              {/* Use real-time calculation for status badge */}
+              <Badge variant={new Date() > new Date(lookupResult.subscription.endDate) ? 'destructive' : 'default'}>
+                {new Date() > new Date(lookupResult.subscription.endDate) ? 'EXPIRED' : lookupResult.subscription.status}
               </Badge>
             </CardTitle>
           </CardHeader>
@@ -337,12 +349,12 @@ export default function LookupPanel() {
                   </div>
                 )}
                 <div className="flex">
-                  <span className="text-gray-600 w-40">Start Date:</span>
-                  <span className="font-medium">{formatDate(lookupResult.subscription.startDate)}</span>
+                  <span className="text-gray-600 w-40">Start Date & Time:</span>
+                  <span className="font-medium">{formatDateTime(lookupResult.subscription.startDate)}</span>
                 </div>
                 <div className="flex">
-                  <span className="text-gray-600 w-40">End Date:</span>
-                  <span className="font-medium">{formatDate(lookupResult.subscription.endDate)}</span>
+                  <span className="text-gray-600 w-40">End Date & Time:</span>
+                  <span className="font-medium">{formatDateTime(lookupResult.subscription.endDate)}</span>
                 </div>
                 <div className="flex">
                   <span className="text-gray-600 w-40">Time Remaining:</span>
@@ -354,7 +366,8 @@ export default function LookupPanel() {
             </div>
 
             <div className="flex items-center gap-2 p-3 bg-gray-50 rounded">
-              {lookupResult.subscription.isExpired ? (
+              {/* Use real-time calculation instead of backend isExpired field */}
+              {new Date() > new Date(lookupResult.subscription.endDate) ? (
                 <>
                   <AlertCircle className="h-5 w-5 text-red-500" />
                   <span className="text-sm font-medium text-red-700">Subscription Expired</span>
@@ -381,27 +394,28 @@ export default function LookupPanel() {
             <div className="space-y-3">
               {userSubscriptions.map((sub) => (
                 <div key={sub.id} className="border rounded-lg p-4 space-y-2">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="font-medium">{sub.plan.name}</div>
-                      <div className="text-sm text-gray-500">₦{sub.plan.price}</div>
-                    </div>
-                    <Badge variant={sub.isExpired ? 'destructive' : 'default'}>
-                      {sub.status}
-                    </Badge>
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="font-medium">{sub.plan.name}</div>
+                    <div className="text-sm text-gray-500">₦{sub.plan.price}</div>
                   </div>
+                  {/* Use real-time calculation for status badge */}
+                  <Badge variant={new Date() > new Date(sub.endDate) ? 'destructive' : 'default'}>
+                    {new Date() > new Date(sub.endDate) ? 'EXPIRED' : sub.status}
+                  </Badge>
+                </div>
                   <div className="text-sm space-y-1">
                     <div className="flex">
                       <span className="text-gray-600 w-32">Access Code:</span>
                       <span className="font-mono font-bold">{sub.accessCode}</span>
                     </div>
                     <div className="flex">
-                      <span className="text-gray-600 w-32">Start Date:</span>
-                      <span>{formatDate(sub.startDate)}</span>
+                      <span className="text-gray-600 w-32">Start Date & Time:</span>
+                      <span>{formatDateTime(sub.startDate)}</span>
                     </div>
                     <div className="flex">
-                      <span className="text-gray-600 w-32">End Date:</span>
-                      <span>{formatDate(sub.endDate)}</span>
+                      <span className="text-gray-600 w-32">End Date & Time:</span>
+                      <span>{formatDateTime(sub.endDate)}</span>
                     </div>
                   </div>
                 </div>

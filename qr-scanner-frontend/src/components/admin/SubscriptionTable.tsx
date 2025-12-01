@@ -43,7 +43,12 @@ export default function SubscriptionTable({ subscriptions, onRefresh }: Subscrip
     setSelectedSubscription(subscription);
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, isExpired?: boolean) => {
+    // Use isExpired as source of truth - if expired, show Expired regardless of DB status
+    if (isExpired) {
+      return <Badge variant="destructive">Expired</Badge>;
+    }
+    
     switch (status) {
       case 'ACTIVE':
         return <Badge variant="default">Active</Badge>;
@@ -61,6 +66,17 @@ export default function SubscriptionTable({ subscriptions, onRefresh }: Subscrip
       year: 'numeric',
       month: 'short',
       day: 'numeric'
+    });
+  };
+
+  const formatDateTime = (dateString: string) => {
+    return new Date(dateString).toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
     });
   };
 
@@ -85,8 +101,8 @@ export default function SubscriptionTable({ subscriptions, onRefresh }: Subscrip
               <TableHead>Plan</TableHead>
               <TableHead>Access Code</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Start Date</TableHead>
-              <TableHead>End Date</TableHead>
+              <TableHead>Start Time</TableHead>
+              <TableHead>End Time</TableHead>
               <TableHead>Time Slot</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -116,9 +132,9 @@ export default function SubscriptionTable({ subscriptions, onRefresh }: Subscrip
                   <TableCell>
                     <code className="font-mono font-bold">{subscription.accessCode}</code>
                   </TableCell>
-                  <TableCell>{getStatusBadge(subscription.status)}</TableCell>
-                  <TableCell>{formatDate(subscription.startDate)}</TableCell>
-                  <TableCell>{formatDate(subscription.endDate)}</TableCell>
+                  <TableCell>{getStatusBadge(subscription.status, new Date() > new Date(subscription.endDate))}</TableCell>
+                  <TableCell>{formatDateTime(subscription.startDate)}</TableCell>
+                  <TableCell>{formatDateTime(subscription.endDate)}</TableCell>
                   <TableCell>
                     {subscription.plan.isCustom ? (
                       <Badge variant="outline">Custom</Badge>
@@ -169,7 +185,7 @@ export default function SubscriptionTable({ subscriptions, onRefresh }: Subscrip
               </div>
               <div className="flex">
                 <span className="text-gray-600 w-40">Status:</span>
-                {getStatusBadge(selectedSubscription.status)}
+                {getStatusBadge(selectedSubscription.status, new Date() > new Date(selectedSubscription.endDate))}
               </div>
             </div>
             <div className="mt-6 flex justify-end">
