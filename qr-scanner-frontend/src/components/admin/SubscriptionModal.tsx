@@ -20,6 +20,8 @@ interface Plan {
   name: string;
   price: number;
   isCustom?: boolean;
+  planType?: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'TEAM' | 'CUSTOM' | null;
+  defaultTimeSlot?: 'MORNING' | 'AFTERNOON' | 'NIGHT' | 'ALL' | null;
 }
 
 interface SubscriptionModalProps {
@@ -48,6 +50,7 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess }: Subscr
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [validationError, setValidationError] = useState<string>('');
 
   useEffect(() => {
     if (isOpen) {
@@ -90,8 +93,98 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess }: Subscr
     }
   };
 
+  // Helper function to validate DAILY plans based on current time
+  const validateDailyPlanTime = (plan: Plan | undefined, startDate: string): { valid: boolean; message?: string } => {
+    if (!plan || plan.planType !== 'DAILY' || !plan.defaultTimeSlot) {
+      return { valid: true };
+    }
+
+    const selectedDate = new Date(startDate);
+    const selectedHour = selectedDate.getHours();
+
+    const TIME_WINDOWS = {
+      MORNING: { start: 8, end: 12, text: '8:00 AM - 11:59 AM' },
+      AFTERNOON: { start: 12, end: 17, text: '12:00 PM - 4:59 PM' },
+      NIGHT: { start: 18, end: 6, text: '6:00 PM - 5:59 AM' }
+    };
+
+    const timeWindow = TIME_WINDOWS[plan.defaultTimeSlot as keyof typeof TIME_WINDOWS];
+    if (!timeWindow) return { valid: true };
+
+    let isValidTime = false;
+    
+    if (plan.defaultTimeSlot === 'NIGHT') {
+      // Night spans across midnight (6pm - 6am)
+      isValidTime = selectedHour >= timeWindow.start || selectedHour < timeWindow.end;
+    } else {
+      // Morning and Afternoon
+      isValidTime = selectedHour >= timeWindow.start && selectedHour < timeWindow.end;
+    }
+
+    if (!isValidTime) {
+      return {
+        valid: false,
+        message: `${plan.name} can only be created during ${timeWindow.text}. Please use a Custom Plan for different times.`
+      };
+    }
+
+    return { valid: true };
+  };
+
+  // Get time slot info for display
+  const getTimeSlotInfo = (plan: Plan | undefined): { slot: string; display: string; canEdit: boolean } => {
+    if (!plan) {
+      return { slot: '', display: 'Anytime', canEdit: true };
+    }
+
+    // Custom plans allow manual selection
+    if (plan.isCustom) {
+      return { 
+        slot: formData.timeSlot || 'ALL', 
+        display: formData.timeSlot || 'Anytime',
+        canEdit: true 
+      };
+    }
+
+    // Standard Monthly plan allows time slot selection
+    if (plan.name === 'Standard Monthly') {
+      return {
+        slot: formData.timeSlot || 'ALL',
+        display: formData.timeSlot || 'Anytime',
+        canEdit: true
+      };
+    }
+
+    // System plans auto-assign based on defaultTimeSlot
+    if (plan.defaultTimeSlot) {
+      const slotNames: Record<string, string> = {
+        MORNING: 'Morning (8am-12pm)',
+        AFTERNOON: 'Afternoon (12pm-5pm)',
+        NIGHT: 'Night (6pm-6am)',
+        ALL: 'Anytime'
+      };
+      return { 
+        slot: plan.defaultTimeSlot, 
+        display: slotNames[plan.defaultTimeSlot] || plan.defaultTimeSlot,
+        canEdit: false 
+      };
+    }
+
+    return { slot: 'ALL', display: 'Anytime', canEdit: false };
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate DAILY plans against time windows
+    const validation = validateDailyPlanTime(selectedPlan, formData.startDate);
+    if (!validation.valid) {
+      setValidationError(validation.message || 'Invalid time for this plan');
+      return;
+    }
+
+    // Clear validation error if previously set
+    setValidationError('');
     setLoading(true);
 
     try {
@@ -122,21 +215,26 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess }: Subscr
           adminNotes: ''
         });
       } else {
-        toast.error(data.message || 'Failed to create subscription');
+        setValidationError(data.message || 'Failed to create subscription');
       }
     } catch {
-      toast.error('An error occurred');
+      setValidationError('An error occurred while creating the subscription');
     } finally {
       setLoading(false);
     }
   };
 
   const selectedPlan = plans.find(p => p.id === formData.planId);
-  const isCustomPlan = selectedPlan?.isCustom || false;
+  const timeSlotInfo = getTimeSlotInfo(selectedPlan);
+
+  // Clear validation error when plan changes
+  useEffect(() => {
+    setValidationError('');
+  }, [formData.planId, formData.startDate]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle>Create Subscription</DialogTitle>
           <DialogDescription>
@@ -144,6 +242,17 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess }: Subscr
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {validationError && (
+            <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-md">
+              <div className="flex items-start">
+                <span className="text-red-500 mr-2">⚠️</span>
+                <div>
+                  <p className="font-medium">Time Window Restriction</p>
+                  <p className="text-sm mt-1">{validationError}</p>
+                </div>
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="userId">Select User *</Label>
@@ -188,8 +297,13 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess }: Subscr
                 onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
                 required
               />
+              {selectedPlan?.planType === 'DAILY' && selectedPlan.defaultTimeSlot && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  ⓘ This plan can only be created during its time window
+                </p>
+              )}
             </div>
-            {!isCustomPlan && formData.planId && (
+            {formData.planId && timeSlotInfo.canEdit && (
               <div className="space-y-2">
                 <Label htmlFor="timeSlot">Time Slot</Label>
                 <select
@@ -198,10 +312,10 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess }: Subscr
                   value={formData.timeSlot}
                   onChange={(e) => setFormData({ ...formData, timeSlot: e.target.value })}
                 >
-                  <option value="">All Day</option>
-                  <option value="MORNING">Morning</option>
-                  <option value="AFTERNOON">Afternoon</option>
-                  <option value="NIGHT">Night</option>
+                  <option value="">Anytime</option>
+                  <option value="MORNING">Morning (8am-12pm)</option>
+                  <option value="AFTERNOON">Afternoon (12pm-5pm)</option>
+                  <option value="NIGHT">Night (6pm-6am)</option>
                 </select>
               </div>
             )}

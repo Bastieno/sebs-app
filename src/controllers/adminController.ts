@@ -136,6 +136,54 @@ export const createAndActivateSubscription = async (req: Request, res: Response)
       } as ApiResponse);
     }
 
+    // Time window validation for DAILY plans
+    const TIME_WINDOWS = {
+      MORNING: { start: 8, end: 12 },    // 8am - 12pm
+      AFTERNOON: { start: 12, end: 17 },  // 12pm - 5pm
+      NIGHT: { start: 18, end: 6 }        // 6pm - 6am (crosses midnight)
+    };
+
+    const parsedStartDate = new Date(startDate);
+    const startHour = parsedStartDate.getHours();
+
+    // Validate DAILY plans can only be created during their time windows
+    if (plan.planType === 'DAILY' && plan.defaultTimeSlot) {
+      const timeWindow = TIME_WINDOWS[plan.defaultTimeSlot as keyof typeof TIME_WINDOWS];
+      
+      if (timeWindow) {
+        let isValidTime = false;
+        
+        if (plan.defaultTimeSlot === 'NIGHT') {
+          // Night spans across midnight (6pm - 6am)
+          isValidTime = startHour >= timeWindow.start || startHour < timeWindow.end;
+        } else {
+          // Morning and Afternoon
+          isValidTime = startHour >= timeWindow.start && startHour < timeWindow.end;
+        }
+
+        if (!isValidTime) {
+          const timeRangeText = plan.defaultTimeSlot === 'NIGHT' 
+            ? '6:00 PM - 5:59 AM'
+            : plan.defaultTimeSlot === 'MORNING'
+            ? '8:00 AM - 11:59 AM'
+            : '12:00 PM - 4:59 PM';
+
+          return res.status(400).json({
+            success: false,
+            message: `Cannot create ${plan.name} outside of its allowed time window (${timeRangeText}). Please use a Custom Plan for different times.`
+          } as ApiResponse);
+        }
+      }
+    }
+
+    // Auto-assign time slot for system plans (not custom)
+    let assignedTimeSlot = timeSlot;
+    if (!plan.isCustom && plan.defaultTimeSlot) {
+      assignedTimeSlot = plan.defaultTimeSlot;
+    } else if (plan.isCustom && !timeSlot) {
+      assignedTimeSlot = 'ALL'; // Default to ALL for custom plans if not specified
+    }
+
     // Helper function to calculate end date based on plan timeUnit and duration
     const calculateEndDate = (startDate: Date, timeUnit: string, duration: number): Date => {
       const endDate = new Date(startDate);
@@ -168,7 +216,6 @@ export const createAndActivateSubscription = async (req: Request, res: Response)
       return Math.floor(100000 + Math.random() * 900000).toString();
     };
 
-    const parsedStartDate = new Date(startDate);
     const endDate = calculateEndDate(parsedStartDate, plan.timeUnit, plan.duration);
 
     // Generate unique access code
@@ -185,7 +232,7 @@ export const createAndActivateSubscription = async (req: Request, res: Response)
         data: {
           userId,
           planId,
-          timeSlot: timeSlot || (plan.timeUnit === 'MONTH' && plan.name.includes('Premium') ? 'ALL' : null),
+          timeSlot: assignedTimeSlot,
           startDate: parsedStartDate,
           endDate,
           accessCode,

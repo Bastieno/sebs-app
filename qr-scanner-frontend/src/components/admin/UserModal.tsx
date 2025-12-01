@@ -116,13 +116,15 @@ export default function UserModal({ isOpen, onClose, user, isCreating, onSuccess
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>{isCreating ? 'Create New User' : 'Edit User'}</DialogTitle>
+          <DialogTitle>
+            {isCreating ? "Create New User" : "Edit User"}
+          </DialogTitle>
           <DialogDescription>
-            {isCreating 
-              ? 'Add a new user to the system' 
-              : 'Update user information'}
+            {isCreating
+              ? "Add a new user to the system"
+              : "Update user information"}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -131,7 +133,9 @@ export default function UserModal({ isOpen, onClose, user, isCreating, onSuccess
             <Input
               id="name"
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
               required
             />
           </div>
@@ -141,7 +145,9 @@ export default function UserModal({ isOpen, onClose, user, isCreating, onSuccess
               id="email"
               type="email"
               value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, email: e.target.value })
+              }
               required
             />
           </div>
@@ -152,7 +158,9 @@ export default function UserModal({ isOpen, onClose, user, isCreating, onSuccess
               type="tel"
               placeholder="+2348012345678"
               value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, phone: e.target.value })
+              }
               required
             />
           </div>
@@ -164,7 +172,9 @@ export default function UserModal({ isOpen, onClose, user, isCreating, onSuccess
                 type="password"
                 placeholder="Leave blank for auto-generated password"
                 value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, password: e.target.value })
+                }
               />
             </div>
           )}
@@ -173,7 +183,11 @@ export default function UserModal({ isOpen, onClose, user, isCreating, onSuccess
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? 'Saving...' : isCreating ? 'Create User' : 'Update User'}
+              {loading
+                ? "Saving..."
+                : isCreating
+                ? "Create User"
+                : "Update User"}
             </Button>
           </div>
         </form>
