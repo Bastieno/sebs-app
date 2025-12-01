@@ -25,6 +25,7 @@ export const getAllPlans = async (req: Request, res: Response): Promise<void> =>
 
     // Group plans by time unit for better organization
     const groupedPlans = {
+      minutes: plans.filter(plan => plan.timeUnit === 'MINUTES'),
       hours: plans.filter(plan => plan.timeUnit === 'HOURS'),
       days: plans.filter(plan => plan.timeUnit === 'DAYS'),
       week: plans.filter(plan => plan.timeUnit === 'WEEK'),

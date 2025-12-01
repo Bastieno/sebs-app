@@ -29,11 +29,19 @@ interface SubscriptionModalProps {
 }
 
 export default function SubscriptionModal({ isOpen, onClose, onSuccess }: SubscriptionModalProps) {
+  // Helper function to get local datetime string for datetime-local input
+  const getLocalDateTimeString = () => {
+    const now = new Date();
+    const offset = now.getTimezoneOffset() * 60000; // offset in milliseconds
+    const localISOTime = new Date(now.getTime() - offset).toISOString().slice(0, 16);
+    return localISOTime;
+  };
+
   const [formData, setFormData] = useState({
     userId: '',
     planId: '',
     timeSlot: '',
-    startDate: new Date().toISOString().split('T')[0],
+    startDate: getLocalDateTimeString(), // Format: YYYY-MM-DDTHH:mm in local time
     paymentMethod: '',
     adminNotes: ''
   });
@@ -45,6 +53,11 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess }: Subscr
     if (isOpen) {
       fetchUsers();
       fetchPlans();
+      // Update start date to current date and time when modal opens
+      setFormData(prev => ({
+        ...prev,
+        startDate: getLocalDateTimeString()
+      }));
     }
   }, [isOpen]);
 
@@ -104,7 +117,7 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess }: Subscr
           userId: '',
           planId: '',
           timeSlot: '',
-          startDate: new Date().toISOString().split('T')[0],
+          startDate: getLocalDateTimeString(),
           paymentMethod: '',
           adminNotes: ''
         });
@@ -167,10 +180,10 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess }: Subscr
               </select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="startDate">Start Date *</Label>
+              <Label htmlFor="startDate">Start Date & Time *</Label>
               <Input
                 id="startDate"
-                type="date"
+                type="datetime-local"
                 value={formData.startDate}
                 onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
                 required

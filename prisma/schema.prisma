@@ -60,8 +60,8 @@ model Subscription {
   planId       String             @map("plan_id")
   timeSlot     TimeSlot?          @map("time_slot") // Time-of-day access restriction (MORNING, AFTERNOON, NIGHT, ALL)
   status       SubscriptionStatus @default(PENDING)
-  startDate    DateTime           @map("start_date") @db.Date
-  endDate      DateTime           @map("end_date") @db.Date
+  startDate    DateTime           @map("start_date") @db.Timestamp
+  endDate      DateTime           @map("end_date") @db.Timestamp
   accessCode   String             @unique @map("access_code")
   adminNotes   String?            @map("admin_notes") @db.Text
   approvedBy   String?            @map("approved_by")

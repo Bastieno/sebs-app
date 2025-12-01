@@ -169,6 +169,29 @@ export default function LookupPanel() {
     });
   };
 
+  const formatTimeRemaining = (endDate: string) => {
+    const now = new Date();
+    const end = new Date(endDate);
+    const diff = end.getTime() - now.getTime();
+
+    if (diff <= 0) {
+      return 'Expired';
+    }
+
+    const years = Math.floor(diff / (1000 * 60 * 60 * 24 * 365));
+    const days = Math.floor((diff % (1000 * 60 * 60 * 24 * 365)) / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+    const parts = [];
+    if (years > 0) parts.push(`${years}yr`);
+    if (days > 0) parts.push(`${days}d`);
+    if (hours > 0) parts.push(`${hours}h`);
+    if (minutes > 0) parts.push(`${minutes}m`);
+
+    return parts.length > 0 ? parts.join(':') : 'Less than a minute';
+  };
+
   return (
     <div className="space-y-4">
       <Card>
@@ -307,9 +330,25 @@ export default function LookupPanel() {
                   <span className="text-gray-600 w-40">Access Code:</span>
                   <span className="font-mono font-bold">{lookupResult.subscription.accessCode}</span>
                 </div>
+                {lookupResult.subscription.timeSlot && (
+                  <div className="flex">
+                    <span className="text-gray-600 w-40">Time Slot:</span>
+                    <span className="font-medium">{lookupResult.subscription.timeSlot}</span>
+                  </div>
+                )}
                 <div className="flex">
-                  <span className="text-gray-600 w-40">Time Slot:</span>
-                  <span className="font-medium">{lookupResult.subscription.timeSlot || 'All Day'}</span>
+                  <span className="text-gray-600 w-40">Start Date:</span>
+                  <span className="font-medium">{formatDate(lookupResult.subscription.startDate)}</span>
+                </div>
+                <div className="flex">
+                  <span className="text-gray-600 w-40">End Date:</span>
+                  <span className="font-medium">{formatDate(lookupResult.subscription.endDate)}</span>
+                </div>
+                <div className="flex">
+                  <span className="text-gray-600 w-40">Time Remaining:</span>
+                  <span className={`font-medium ${lookupResult.subscription.isExpired ? 'text-red-600' : 'text-green-600'}`}>
+                    {formatTimeRemaining(lookupResult.subscription.endDate)}
+                  </span>
                 </div>
               </div>
             </div>
