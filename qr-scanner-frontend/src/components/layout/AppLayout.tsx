@@ -7,8 +7,6 @@ import { Button } from '@/components/ui/button';
 import { 
   LayoutDashboard, 
   Shield,
-  History,
-  Users,
   Menu,
   X,
   LogOut,
@@ -54,18 +52,6 @@ export function AppLayout({ children }: AppLayoutProps) {
       href: '/admin',
       icon: Shield,
       current: pathname === '/admin',
-    },
-    {
-      name: 'Access Logs',
-      href: '/access-logs',
-      icon: History,
-      current: pathname === '/access-logs',
-    },
-    {
-      name: 'Capacity Monitor',
-      href: '/capacity',
-      icon: Users,
-      current: pathname === '/capacity',
     },
   ];
 
