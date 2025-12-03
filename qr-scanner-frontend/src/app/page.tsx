@@ -1,203 +1,241 @@
 'use client';
-
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { 
-  ScanLine, 
-  Users, 
-  Clock, 
-  CheckCircle, 
-  AlertCircle,
-  ArrowRight,
-  RefreshCw 
-} from 'lucide-react';
-import { useTodaysStats, useCapacityData, useHealthCheck } from '@/hooks/useApi';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Calendar as CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
+import { DateRange } from 'react-day-picker';
+import { Calendar } from '@/components/ui/calendar';
+import SubscriptionTable from '@/components/admin/SubscriptionTable';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
+
+interface Subscription {
+  id: string;
+  status: string;
+  accessCode: string;
+  startDate: string;
+  endDate: string;
+  timeSlot: string | null;
+  createdAt: string;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+  };
+  plan: {
+    id: string;
+    name: string;
+    price: number;
+    isCustom?: boolean;
+    startDateTime?: string;
+    endDateTime?: string;
+  };
+}
+
+type StatusFilter = 'all' | 'active' | 'expired';
 
 export default function Dashboard() {
-  const { data: todaysStats, loading: statsLoading, error: statsError, refetch: refetchStats } = useTodaysStats();
-  const { data: capacityData, loading: capacityLoading, error: capacityError, refetch: refetchCapacity } = useCapacityData();
-  const { loading: healthLoading, error: healthError, refetch: refetchHealth } = useHealthCheck();
-  const [lastRefresh, setLastRefresh] = useState(new Date());
-  const [isClient, setIsClient] = useState(false);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
+  const [filteredSubscriptions, setFilteredSubscriptions] = useState<Subscription[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   useEffect(() => {
-    setIsClient(true);
+    fetchSubscriptions();
   }, []);
 
-  const handleRefresh = async () => {
-    await Promise.all([refetchStats(), refetchCapacity(), refetchHealth()]);
-    setLastRefresh(new Date());
+  useEffect(() => {
+    applyFilters();
+  }, [subscriptions, statusFilter, dateRange]);
+
+  const fetchSubscriptions = async () => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${API_URL}/api/admin/subscriptions`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setSubscriptions(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching subscriptions:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Determine system status based on API connectivity and health check
-  const systemStatus = (statsError || capacityError || healthError) ? 'offline' : 'online';
-  const isLoading = statsLoading || capacityLoading || healthLoading;
+  const applyFilters = () => {
+    let filtered = [...subscriptions];
 
-  console.log('capacityData', capacityData);
-  
-  const stats = {
-    todayEntries: todaysStats?.totalEntries || 0,
-    currentOccupancy: capacityData?.success ? capacityData.data.totalCurrentOccupancy : 0,
-    totalCapacity: capacityData?.success ? capacityData.data.totalCapacity : 0,
-    systemStatus,
-    lastScanned: todaysStats?.lastScanTime || 'No recent activity'
+    // Apply status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(sub => {
+        const isExpired = new Date() > new Date(sub.endDate);
+        if (statusFilter === 'active') {
+          return !isExpired;
+        } else if (statusFilter === 'expired') {
+          return isExpired;
+        }
+        return true;
+      });
+    }
+
+    // Apply date range filter
+    if (dateRange?.from) {
+      const fromDate = dateRange.from;
+      filtered = filtered.filter(sub => {
+        const subStartDate = new Date(sub.startDate);
+        return subStartDate >= fromDate;
+      });
+    }
+
+    if (dateRange?.to) {
+      const toDate = dateRange.to;
+      filtered = filtered.filter(sub => {
+        const subEndDate = new Date(sub.endDate);
+        const filterEndDate = new Date(toDate);
+        filterEndDate.setHours(23, 59, 59, 999);
+        return subEndDate <= filterEndDate;
+      });
+    }
+
+    setFilteredSubscriptions(filtered);
+  };
+
+  const handleClearFilters = () => {
+    setStatusFilter('all');
+    setDateRange(undefined);
+  };
+
+  const formatDateRange = () => {
+    if (!dateRange?.from && !dateRange?.to) return 'Select date range';
+    if (dateRange?.from && dateRange?.to) {
+      return `${format(dateRange.from, 'MMM d, yyyy')} - ${format(dateRange.to, 'MMM d, yyyy')}`;
+    }
+    if (dateRange?.from) return `From ${format(dateRange.from, 'MMM d, yyyy')}`;
+    if (dateRange?.to) return `To ${format(dateRange.to, 'MMM d, yyyy')}`;
+    return 'Select date range';
   };
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600 mt-2">
-          Welcome to Seb&apos;s Hub Admin Portal
-        </p>
+        <p className="text-gray-600 mt-2">Track and manage all subscriptions</p>
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Current Capacity</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats.currentOccupancy}/{stats.totalCapacity}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {stats.totalCapacity > 0 ? Math.round((stats.currentOccupancy / stats.totalCapacity) * 100) : 0}% occupied
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Today&apos;s Entries</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.todayEntries}</div>
-            <p className="text-xs text-muted-foreground">
-              Total access attempts
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* System Status */}
+      {/* Compact Filters */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            System Status
-            {stats.systemStatus === 'online' ? (
-              <CheckCircle className="h-5 w-5 text-green-500" />
-            ) : (
-              <AlertCircle className="h-5 w-5 text-red-500" />
-            )}
-          </CardTitle>
-          <CardDescription>
-            Current system health and recent activity
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Scanner Status</span>
-              <Badge variant={stats.systemStatus === 'online' ? 'default' : 'destructive'}>
-                {stats.systemStatus === 'online' ? 'Online' : 'Offline'}
-              </Badge>
+        <CardContent className="pt-6">
+          <div className="flex flex-wrap items-end gap-4">
+            {/* Status Filter */}
+            <div className="space-y-2 min-w-[180px]">
+              <Label htmlFor="status-filter">Status</Label>
+              <Select
+                value={statusFilter}
+                onValueChange={(value) =>
+                  setStatusFilter(value as StatusFilter)
+                }
+              >
+                <SelectTrigger id="status-filter">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Subscriptions</SelectItem>
+                  <SelectItem value="active">Active Only</SelectItem>
+                  <SelectItem value="expired">Expired Only</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Last Activity</span>
-              <span className="text-sm text-muted-foreground">{stats.lastScanned}</span>
+
+            {/* Date Range Picker */}
+            <div className="space-y-2 min-w-[280px]">
+              <Label>Date Range</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {formatDateRange()}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 max-w-none" align="start">
+                  <Calendar
+                    mode="range"
+                    defaultMonth={dateRange?.from}
+                    selected={dateRange}
+                    onSelect={setDateRange}
+                    numberOfMonths={2}
+                    disabled={{ after: new Date() }}
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Backend Connection</span>
-              <Badge variant={stats.systemStatus === 'online' ? 'default' : 'destructive'}>
-                {stats.systemStatus === 'online' ? 'Connected' : 'Disconnected'}
-              </Badge>
+
+            {/* Clear Filters Button */}
+            <Button
+              variant="outline"
+              onClick={handleClearFilters}
+              disabled={
+                statusFilter === "all" && !dateRange?.from && !dateRange?.to
+              }
+            >
+              Clear Filters
+            </Button>
+
+            {/* Filter Summary */}
+            <div className="ml-auto text-sm text-gray-600">
+              Showing{" "}
+              <span className="font-semibold">
+                {filteredSubscriptions.length}
+              </span>{" "}
+              of <span className="font-semibold">{subscriptions.length}</span>{" "}
+              subscriptions
+              {(statusFilter !== "all" || dateRange?.from || dateRange?.to) && (
+                <span className="text-blue-600 ml-1">(Filtered)</span>
+              )}
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Last Refresh</span>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">
-                  {isClient ? lastRefresh.toLocaleTimeString() : '--:--:--'}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleRefresh}
-                  disabled={isLoading}
-                  className="h-6 w-6 p-0"
-                >
-                  <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
-                </Button>
-              </div>
-            </div>
-            {(statsError || capacityError || healthError) && (
-              <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
-                <p className="font-medium mb-1">Connection Issues:</p>
-                <ul className="text-xs space-y-1">
-                  {statsError && <li>• Stats: {statsError}</li>}
-                  {capacityError && <li>• Capacity: {capacityError}</li>}
-                  {healthError && <li>• Health Check: {healthError}</li>}
-                </ul>
-              </div>
-            )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Quick Navigation */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Subscription Table */}
+      {loading ? (
         <Card>
-          <CardHeader>
-            <CardTitle>Access Management</CardTitle>
-            <CardDescription>
-              Monitor and manage facility access
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Link href="/access-logs">
-              <Button variant="outline" className="w-full justify-between">
-                View Access Logs
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
-            <Link href="/capacity">
-              <Button variant="outline" className="w-full justify-between">
-                Capacity Monitor
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
+          <CardContent className="py-12">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">Loading subscriptions...</p>
+            </div>
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Admin Tools</CardTitle>
-            <CardDescription>
-              Manage users and subscriptions
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <Link href="/admin">
-              <Button className="w-full justify-between">
-                Admin Dashboard
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
-            <Link href="/access-logs">
-              <Button variant="outline" className="w-full justify-between">
-                View All Logs
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
+      ) : (
+        <SubscriptionTable
+          subscriptions={filteredSubscriptions}
+          onRefresh={fetchSubscriptions}
+        />
+      )}
     </div>
   );
 }
