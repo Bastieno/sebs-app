@@ -99,22 +99,24 @@ export default function Dashboard() {
       });
     }
 
-    // Apply date range filter
+    // Apply date range filter - show subscriptions that overlap with the selected date range
     if (dateRange?.from) {
       const fromDate = dateRange.from;
       filtered = filtered.filter(sub => {
-        const subStartDate = new Date(sub.startDate);
-        return subStartDate >= fromDate;
+        const subEndDate = new Date(sub.endDate);
+        // Subscription must still be running on or after the "from" date
+        return subEndDate >= fromDate;
       });
     }
 
     if (dateRange?.to) {
       const toDate = dateRange.to;
+      const filterEndDate = new Date(toDate);
+      filterEndDate.setHours(23, 59, 59, 999);
       filtered = filtered.filter(sub => {
-        const subEndDate = new Date(sub.endDate);
-        const filterEndDate = new Date(toDate);
-        filterEndDate.setHours(23, 59, 59, 999);
-        return subEndDate <= filterEndDate;
+        const subStartDate = new Date(sub.startDate);
+        // Subscription must have started on or before the "to" date
+        return subStartDate <= filterEndDate;
       });
     }
 
