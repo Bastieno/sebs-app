@@ -5,6 +5,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Eye, Plus } from 'lucide-react';
+import { Pagination } from '@/components/ui/pagination';
+import { usePagination } from '@/hooks/usePagination';
 import SubscriptionModal from './SubscriptionModal';
 
 interface Subscription {
@@ -38,6 +40,16 @@ interface SubscriptionTableProps {
 export default function SubscriptionTable({ subscriptions, onRefresh }: SubscriptionTableProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSubscription, setSelectedSubscription] = useState<Subscription | null>(null);
+  
+  // Use the pagination hook
+  const {
+    paginatedItems: paginatedSubscriptions,
+    currentPage,
+    itemsPerPage,
+    totalItems,
+    handlePageChange,
+    handleItemsPerPageChange,
+  } = usePagination(subscriptions, { initialItemsPerPage: 10 });
 
   const handleViewDetails = (subscription: Subscription) => {
     setSelectedSubscription(subscription);
@@ -123,14 +135,14 @@ export default function SubscriptionTable({ subscriptions, onRefresh }: Subscrip
             </TableRow>
           </TableHeader>
           <TableBody>
-            {subscriptions.length === 0 ? (
+            {paginatedSubscriptions.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={8} className="text-center py-8 text-gray-500">
-                  No subscriptions found
+                  {subscriptions.length === 0 ? 'No subscriptions found' : 'No subscriptions on this page'}
                 </TableCell>
               </TableRow>
             ) : (
-              subscriptions.map((subscription) => (
+              paginatedSubscriptions.map((subscription) => (
                 <TableRow key={subscription.id}>
                   <TableCell>
                     <div>
@@ -173,6 +185,15 @@ export default function SubscriptionTable({ subscriptions, onRefresh }: Subscrip
           </TableBody>
         </Table>
       </div>
+
+      {/* Pagination Controls */}
+      <Pagination
+        totalItems={totalItems}
+        currentPage={currentPage}
+        itemsPerPage={itemsPerPage}
+        onPageChange={handlePageChange}
+        onItemsPerPageChange={handleItemsPerPageChange}
+      />
 
       <SubscriptionModal
         isOpen={isModalOpen}
