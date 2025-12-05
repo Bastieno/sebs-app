@@ -281,13 +281,13 @@ export default function SubscriptionTable({ subscriptions, onRefresh }: Subscrip
               <div>
                 <h4 className="font-semibold mb-2">User Information</h4>
                 <div className="space-y-1 text-sm">
-                  <div className="flex">
-                    <span className="text-gray-600 w-40">Name:</span>
-                    <span className="font-medium">{selectedSubscription.user.name}</span>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="text-gray-600 sm:w-40">Name:</span>
+                    <span className="font-medium break-words text-right sm:text-left">{selectedSubscription.user.name}</span>
                   </div>
-                  <div className="flex">
-                    <span className="text-gray-600 w-40">Email:</span>
-                    <span className="font-medium">{selectedSubscription.user.email}</span>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="text-gray-600 sm:w-40">Email:</span>
+                    <span className="font-medium break-words text-right sm:text-left">{selectedSubscription.user.email}</span>
                   </div>
                 </div>
               </div>
@@ -296,35 +296,35 @@ export default function SubscriptionTable({ subscriptions, onRefresh }: Subscrip
               <div>
                 <h4 className="font-semibold mb-2">Subscription Information</h4>
                 <div className="space-y-1 text-sm">
-                  <div className="flex">
-                    <span className="text-gray-600 w-40">Plan:</span>
-                    <span className="font-medium">{selectedSubscription.plan.name}</span>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="text-gray-600 sm:w-40">Plan:</span>
+                    <span className="font-medium break-words text-right sm:text-left">{selectedSubscription.plan.name}</span>
                   </div>
-                  <div className="flex">
-                    <span className="text-gray-600 w-40">Price:</span>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="text-gray-600 sm:w-40">Price:</span>
                     <span className="font-medium">₦{selectedSubscription.plan.price}</span>
                   </div>
-                  <div className="flex">
-                    <span className="text-gray-600 w-40">Access Code:</span>
-                    <span className="font-mono font-bold">{selectedSubscription.accessCode}</span>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="text-gray-600 sm:w-40">Access Code:</span>
+                    <span className="font-mono font-bold break-all">{selectedSubscription.accessCode}</span>
                   </div>
                   {selectedSubscription.timeSlot && (
-                    <div className="flex">
-                      <span className="text-gray-600 w-40">Time Slot:</span>
+                    <div className="flex justify-between sm:justify-start sm:gap-2">
+                      <span className="text-gray-600 sm:w-40">Time Slot:</span>
                       <span className="font-medium">{selectedSubscription.timeSlot}</span>
                     </div>
                   )}
-                  <div className="flex">
-                    <span className="text-gray-600 w-40">Start Date & Time:</span>
-                    <span className="font-medium">{formatDateTime(selectedSubscription.startDate)}</span>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="text-gray-600 sm:w-40">Start Date:</span>
+                    <span className="font-medium break-words text-right sm:text-left text-xs sm:text-sm">{formatDateTime(selectedSubscription.startDate)}</span>
                   </div>
-                  <div className="flex">
-                    <span className="text-gray-600 w-40">End Date & Time:</span>
-                    <span className="font-medium">{formatDateTime(selectedSubscription.endDate)}</span>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="text-gray-600 sm:w-40">End Date:</span>
+                    <span className="font-medium break-words text-right sm:text-left text-xs sm:text-sm">{formatDateTime(selectedSubscription.endDate)}</span>
                   </div>
-                  <div className="flex">
-                    <span className="text-gray-600 w-40">Time Remaining:</span>
-                    <span className={`font-medium ${new Date() > new Date(selectedSubscription.endDate) ? 'text-red-600' : 'text-green-600'}`}>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="text-gray-600 sm:w-40">Time Left:</span>
+                    <span className={`font-medium break-words text-right sm:text-left ${new Date() > new Date(selectedSubscription.endDate) ? 'text-red-600' : 'text-green-600'}`}>
                       {formatTimeRemaining(selectedSubscription.endDate)}
                     </span>
                   </div>

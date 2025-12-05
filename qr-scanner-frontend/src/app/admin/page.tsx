@@ -192,7 +192,7 @@ export default function AdminDashboard() {
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
   return (
-    <div className="space-y-6 max-w-full overflow-x-hidden">
+    <div className="space-y-6 max-w-full">
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Admin Dashboard</h1>
         <p className="text-sm sm:text-base text-gray-600 mt-2">

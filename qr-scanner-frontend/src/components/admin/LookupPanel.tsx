@@ -367,17 +367,17 @@ export default function LookupPanel() {
             <div>
               <h3 className="font-semibold mb-2">User Information</h3>
               <div className="space-y-1 text-sm">
-                <div className="flex flex-col sm:flex-row sm:gap-2">
-                  <span className="text-gray-600 sm:min-w-[10rem]">Name:</span>
-                  <span className="font-medium">{lookupResult.user.name}</span>
+                <div className="flex justify-between sm:justify-start sm:gap-2">
+                  <span className="text-gray-600 sm:w-40">Name:</span>
+                  <span className="font-medium break-words text-right sm:text-left">{lookupResult.user.name}</span>
                 </div>
-                <div className="flex flex-col sm:flex-row sm:gap-2">
-                  <span className="text-gray-600 sm:min-w-[10rem]">Email:</span>
-                  <span className="font-medium break-all">{lookupResult.user.email}</span>
+                <div className="flex justify-between sm:justify-start sm:gap-2">
+                  <span className="text-gray-600 sm:w-40">Email:</span>
+                  <span className="font-medium break-words text-right sm:text-left">{lookupResult.user.email}</span>
                 </div>
-                <div className="flex flex-col sm:flex-row sm:gap-2">
-                  <span className="text-gray-600 sm:min-w-[10rem]">Phone:</span>
-                  <span className="font-medium">{lookupResult.user.phone}</span>
+                <div className="flex justify-between sm:justify-start sm:gap-2">
+                  <span className="text-gray-600 sm:w-40">Phone:</span>
+                  <span className="font-medium break-words text-right sm:text-left">{lookupResult.user.phone}</span>
                 </div>
               </div>
             </div>
@@ -385,35 +385,35 @@ export default function LookupPanel() {
             <div>
               <h3 className="font-semibold mb-2">Subscription Information</h3>
               <div className="space-y-1 text-sm">
-                <div className="flex flex-col sm:flex-row sm:gap-2">
-                  <span className="text-gray-600 sm:min-w-[10rem]">Plan:</span>
-                  <span className="font-medium">{lookupResult.plan.name}</span>
+                <div className="flex justify-between sm:justify-start sm:gap-2">
+                  <span className="text-gray-600 sm:w-40">Plan:</span>
+                  <span className="font-medium break-words text-right sm:text-left">{lookupResult.plan.name}</span>
                 </div>
-                <div className="flex flex-col sm:flex-row sm:gap-2">
-                  <span className="text-gray-600 sm:min-w-[10rem]">Price:</span>
+                <div className="flex justify-between sm:justify-start sm:gap-2">
+                  <span className="text-gray-600 sm:w-40">Price:</span>
                   <span className="font-medium">₦{lookupResult.plan.price}</span>
                 </div>
-                <div className="flex flex-col sm:flex-row sm:gap-2">
-                  <span className="text-gray-600 sm:min-w-[10rem]">Access Code:</span>
-                  <span className="font-mono font-bold">{lookupResult.subscription.accessCode}</span>
+                <div className="flex justify-between sm:justify-start sm:gap-2">
+                  <span className="text-gray-600 sm:w-40">Access Code:</span>
+                  <span className="font-mono font-bold break-all">{lookupResult.subscription.accessCode}</span>
                 </div>
                 {lookupResult.subscription.timeSlot && (
-                  <div className="flex flex-col sm:flex-row sm:gap-2">
-                    <span className="text-gray-600 sm:min-w-[10rem]">Time Slot:</span>
+                  <div className="flex justify-between sm:justify-start sm:gap-2">
+                    <span className="text-gray-600 sm:w-40">Time Slot:</span>
                     <span className="font-medium">{lookupResult.subscription.timeSlot}</span>
                   </div>
                 )}
-                <div className="flex flex-col sm:flex-row sm:gap-2">
-                  <span className="text-gray-600 sm:min-w-[10rem]">Start Date & Time:</span>
-                  <span className="font-medium text-xs sm:text-sm">{formatDateTime(lookupResult.subscription.startDate)}</span>
+                <div className="flex justify-between sm:justify-start sm:gap-2">
+                  <span className="text-gray-600 sm:w-40">Start Date:</span>
+                  <span className="font-medium break-words text-right sm:text-left text-xs sm:text-sm">{formatDateTime(lookupResult.subscription.startDate)}</span>
                 </div>
-                <div className="flex flex-col sm:flex-row sm:gap-2">
-                  <span className="text-gray-600 sm:min-w-[10rem]">End Date & Time:</span>
-                  <span className="font-medium text-xs sm:text-sm">{formatDateTime(lookupResult.subscription.endDate)}</span>
+                <div className="flex justify-between sm:justify-start sm:gap-2">
+                  <span className="text-gray-600 sm:w-40">End Date:</span>
+                  <span className="font-medium break-words text-right sm:text-left text-xs sm:text-sm">{formatDateTime(lookupResult.subscription.endDate)}</span>
                 </div>
-                <div className="flex flex-col sm:flex-row sm:gap-2">
-                  <span className="text-gray-600 sm:min-w-[10rem]">Time Remaining:</span>
-                  <span className={`font-medium ${lookupResult.subscription.isExpired ? 'text-red-600' : 'text-green-600'}`}>
+                <div className="flex justify-between sm:justify-start sm:gap-2">
+                  <span className="text-gray-600 sm:w-40">Time Left:</span>
+                  <span className={`font-medium break-words text-right sm:text-left ${lookupResult.subscription.isExpired ? 'text-red-600' : 'text-green-600'}`}>
                     {formatTimeRemaining(lookupResult.subscription.endDate)}
                   </span>
                 </div>
@@ -460,17 +460,17 @@ export default function LookupPanel() {
                   </Badge>
                 </div>
                   <div className="text-sm space-y-1">
-                    <div className="flex flex-col sm:flex-row sm:gap-2">
-                      <span className="text-gray-600 sm:min-w-[8rem]">Access Code:</span>
-                      <span className="font-mono font-bold">{sub.accessCode}</span>
+                    <div className="flex justify-between sm:justify-start sm:gap-2">
+                      <span className="text-gray-600 sm:w-32">Access Code:</span>
+                      <span className="font-mono font-bold break-all">{sub.accessCode}</span>
                     </div>
-                    <div className="flex flex-col sm:flex-row sm:gap-2">
-                      <span className="text-gray-600 sm:min-w-[8rem]">Start Date & Time:</span>
-                      <span className="text-xs sm:text-sm">{formatDateTime(sub.startDate)}</span>
+                    <div className="flex justify-between sm:justify-start sm:gap-2">
+                      <span className="text-gray-600 sm:w-32">Start Date:</span>
+                      <span className="break-words text-right sm:text-left text-xs sm:text-sm">{formatDateTime(sub.startDate)}</span>
                     </div>
-                    <div className="flex flex-col sm:flex-row sm:gap-2">
-                      <span className="text-gray-600 sm:min-w-[8rem]">End Date & Time:</span>
-                      <span className="text-xs sm:text-sm">{formatDateTime(sub.endDate)}</span>
+                    <div className="flex justify-between sm:justify-start sm:gap-2">
+                      <span className="text-gray-600 sm:w-32">End Date:</span>
+                      <span className="break-words text-right sm:text-left text-xs sm:text-sm">{formatDateTime(sub.endDate)}</span>
                     </div>
                   </div>
                 </div>
