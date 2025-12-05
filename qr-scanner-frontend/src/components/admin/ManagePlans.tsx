@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Pagination } from '@/components/ui/pagination';
+import { usePagination } from '@/hooks/usePagination';
 import { Pencil, Trash2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import PlanModal from './PlanModal';
@@ -39,6 +41,16 @@ export default function ManagePlans({ plans, onRefresh }: ManagePlansProps) {
     // Within same type, sort alphabetically
     return a.name.localeCompare(b.name);
   });
+
+  // Use the pagination hook
+  const {
+    paginatedItems: paginatedPlans,
+    currentPage,
+    itemsPerPage,
+    totalItems,
+    handlePageChange,
+    handleItemsPerPageChange,
+  } = usePagination(sortedPlans, { initialItemsPerPage: 10 });
 
   const handleAddPlan = () => {
     setIsCreating(true);
@@ -121,14 +133,14 @@ export default function ManagePlans({ plans, onRefresh }: ManagePlansProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sortedPlans.length === 0 ? (
+            {paginatedPlans.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                  No plans found
+                  {sortedPlans.length === 0 ? 'No plans found' : 'No plans on this page'}
                 </TableCell>
               </TableRow>
             ) : (
-              sortedPlans.map((plan) => (
+              paginatedPlans.map((plan) => (
                 <TableRow key={plan.id} className={plan.isCustom ? '' : 'bg-gray-50'}>
                   <TableCell className="font-medium">{plan.name}</TableCell>
                   <TableCell>
@@ -181,12 +193,12 @@ export default function ManagePlans({ plans, onRefresh }: ManagePlansProps) {
 
       {/* Mobile Card View */}
       <div className="block md:hidden space-y-4">
-        {sortedPlans.length === 0 ? (
+        {paginatedPlans.length === 0 ? (
           <div className="text-center py-8 text-gray-500 border rounded-md">
-            No plans found
+            {sortedPlans.length === 0 ? 'No plans found' : 'No plans on this page'}
           </div>
         ) : (
-          sortedPlans.map((plan) => (
+          paginatedPlans.map((plan) => (
             <div 
               key={plan.id} 
               className={`border rounded-lg p-4 space-y-3 shadow-sm ${
@@ -250,6 +262,15 @@ export default function ManagePlans({ plans, onRefresh }: ManagePlansProps) {
           ))
         )}
       </div>
+
+      {/* Pagination Controls */}
+      <Pagination
+        totalItems={totalItems}
+        currentPage={currentPage}
+        itemsPerPage={itemsPerPage}
+        onPageChange={handlePageChange}
+        onItemsPerPageChange={handleItemsPerPageChange}
+      />
 
       <PlanModal
         isOpen={isModalOpen}

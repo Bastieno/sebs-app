@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Pagination } from '@/components/ui/pagination';
+import { usePagination } from '@/hooks/usePagination';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Users, FileText, Search, Bell, Settings, CheckCircle, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
@@ -67,6 +69,16 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState<User[]>([]);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
+
+  // Use the pagination hook for notifications
+  const {
+    paginatedItems: paginatedNotifications,
+    currentPage,
+    itemsPerPage,
+    totalItems,
+    handlePageChange,
+    handleItemsPerPageChange,
+  } = usePagination(notifications, { initialItemsPerPage: 10 });
 
   useEffect(() => {
     fetchUsers();
@@ -344,7 +356,7 @@ export default function AdminDashboard() {
               View system notifications and alerts
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             {notifications.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <Bell className="h-12 w-12 mx-auto mb-4 opacity-50" />
@@ -352,7 +364,7 @@ export default function AdminDashboard() {
               </div>
             ) : (
               <div className="space-y-3">
-                {notifications.map((notification) => (
+                {paginatedNotifications.map((notification) => (
                   <div
                     key={notification.id}
                     className={`p-4 rounded-lg border transition-colors ${
@@ -398,6 +410,17 @@ export default function AdminDashboard() {
                   </div>
                 ))}
               </div>
+            )}
+
+            {/* Pagination Controls */}
+            {notifications.length > 0 && (
+              <Pagination
+                totalItems={totalItems}
+                currentPage={currentPage}
+                itemsPerPage={itemsPerPage}
+                onPageChange={handlePageChange}
+                onItemsPerPageChange={handleItemsPerPageChange}
+              />
             )}
           </CardContent>
         </Card>

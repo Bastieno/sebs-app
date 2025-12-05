@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Pagination } from '@/components/ui/pagination';
+import { usePagination } from '@/hooks/usePagination';
 import { Pencil, Trash2, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import UserModal from './UserModal';
@@ -30,6 +32,16 @@ export default function UserTable({ users, onRefresh }: UserTableProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
+
+  // Use the pagination hook
+  const {
+    paginatedItems: paginatedUsers,
+    currentPage,
+    itemsPerPage,
+    totalItems,
+    handlePageChange,
+    handleItemsPerPageChange,
+  } = usePagination(users, { initialItemsPerPage: 10 });
 
   const handleAddUser = () => {
     setIsCreating(true);
@@ -126,14 +138,14 @@ export default function UserTable({ users, onRefresh }: UserTableProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {users.length === 0 ? (
+            {paginatedUsers.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-8 text-gray-500">
-                  No users found
+                  {users.length === 0 ? 'No users found' : 'No users on this page'}
                 </TableCell>
               </TableRow>
             ) : (
-              users.map((user) => (
+              paginatedUsers.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell className="font-medium">{user.name}</TableCell>
                   <TableCell>{user.email}</TableCell>
@@ -184,12 +196,12 @@ export default function UserTable({ users, onRefresh }: UserTableProps) {
 
       {/* Mobile List View */}
       <div className="block md:hidden space-y-4">
-        {users.length === 0 ? (
+        {paginatedUsers.length === 0 ? (
           <div className="text-center py-8 text-gray-500 border rounded-md">
-            No users found
+            {users.length === 0 ? 'No users found' : 'No users on this page'}
           </div>
         ) : (
-          users.map((user) => (
+          paginatedUsers.map((user) => (
             <div key={user.id} className="border rounded-lg p-4 space-y-3 bg-white shadow-sm">
               <div className="flex justify-between items-start">
                 <div className="flex-1">
@@ -252,6 +264,15 @@ export default function UserTable({ users, onRefresh }: UserTableProps) {
           ))
         )}
       </div>
+
+      {/* Pagination Controls */}
+      <Pagination
+        totalItems={totalItems}
+        currentPage={currentPage}
+        itemsPerPage={itemsPerPage}
+        onPageChange={handlePageChange}
+        onItemsPerPageChange={handleItemsPerPageChange}
+      />
 
       <UserModal
         isOpen={isModalOpen}

@@ -5,6 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Pagination } from '@/components/ui/pagination';
+import { usePagination } from '@/hooks/usePagination';
 import { Search, CheckCircle, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -75,6 +77,16 @@ export default function LookupPanel() {
   const [isSearching, setIsSearching] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const skipSearchRef = useRef(false);
+
+  // Use the pagination hook for user subscriptions
+  const {
+    paginatedItems: paginatedSubscriptions,
+    currentPage,
+    itemsPerPage,
+    totalItems,
+    handlePageChange,
+    handleItemsPerPageChange,
+  } = usePagination(userSubscriptions, { initialItemsPerPage: 10 });
 
   const handleSearchByAccessCode = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -445,9 +457,9 @@ export default function LookupPanel() {
             <CardTitle>User Subscriptions</CardTitle>
             <CardDescription>All subscriptions for selected user</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <div className="space-y-3">
-              {userSubscriptions.map((sub) => (
+              {paginatedSubscriptions.map((sub) => (
                 <div key={sub.id} className="border rounded-lg p-4 space-y-2">
                 <div className="flex justify-between items-start">
                   <div>
@@ -476,6 +488,15 @@ export default function LookupPanel() {
                 </div>
               ))}
             </div>
+
+            {/* Pagination Controls */}
+            <Pagination
+              totalItems={totalItems}
+              currentPage={currentPage}
+              itemsPerPage={itemsPerPage}
+              onPageChange={handlePageChange}
+              onItemsPerPageChange={handleItemsPerPageChange}
+            />
           </CardContent>
         </Card>
       )}
