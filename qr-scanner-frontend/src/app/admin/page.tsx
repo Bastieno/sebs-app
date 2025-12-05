@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Users, FileText, Search, Bell, Settings, CheckCircle, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { getNotifications, markNotificationAsRead, Notification } from '@/lib/api';
@@ -191,16 +192,72 @@ export default function AdminDashboard() {
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-full overflow-x-hidden">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-        <p className="text-gray-600 mt-2">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+        <p className="text-sm sm:text-base text-gray-600 mt-2">
           Manage users, subscriptions, and plans
         </p>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="pt-1 flex gap-2 border-b overflow-x-auto">
+      {/* Mobile Select Navigation */}
+      <div className="md:hidden">
+        <Select value={activeTab} onValueChange={(value) => setActiveTab(value as TabType)}>
+          <SelectTrigger className="w-full">
+            <SelectValue>
+              {activeTab === 'users' && <><Users className="inline h-4 w-4 mr-2" />Users</>}
+              {activeTab === 'subscriptions' && <><FileText className="inline h-4 w-4 mr-2" />Subscriptions</>}
+              {activeTab === 'lookup' && <><Search className="inline h-4 w-4 mr-2" />Lookup</>}
+              {activeTab === 'notifications' && (
+                <span className="flex items-center">
+                  <Bell className="inline h-4 w-4 mr-2" />
+                  Notifications
+                  {unreadCount > 0 && (
+                    <Badge variant="destructive" className="ml-2 h-5 px-1.5 text-xs">
+                      {unreadCount}
+                    </Badge>
+                  )}
+                </span>
+              )}
+              {activeTab === 'plans' && <><Settings className="inline h-4 w-4 mr-2" />Plans</>}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="users">
+              <Users className="inline h-4 w-4 mr-2" />
+              Users
+            </SelectItem>
+            <SelectItem value="subscriptions">
+              <FileText className="inline h-4 w-4 mr-2" />
+              Subscriptions
+            </SelectItem>
+            <SelectItem value="lookup">
+              <Search className="inline h-4 w-4 mr-2" />
+              Lookup
+            </SelectItem>
+            <SelectItem value="notifications">
+              <div className="flex items-center justify-between w-full">
+                <span className="flex items-center">
+                  <Bell className="inline h-4 w-4 mr-2" />
+                  Notifications
+                </span>
+                {unreadCount > 0 && (
+                  <Badge variant="destructive" className="ml-2 h-5 px-1.5 text-xs">
+                    {unreadCount}
+                  </Badge>
+                )}
+              </div>
+            </SelectItem>
+            <SelectItem value="plans">
+              <Settings className="inline h-4 w-4 mr-2" />
+              Plans
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Desktop Tab Navigation */}
+      <div className="hidden md:flex pt-1 gap-2 border-b">
         <button
           onClick={() => setActiveTab('users')}
           className={`px-4 py-2 font-medium transition-colors whitespace-nowrap ${

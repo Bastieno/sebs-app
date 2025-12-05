@@ -148,9 +148,9 @@ export default function Dashboard() {
       {/* Compact Filters */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex flex-wrap items-end gap-4">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-end gap-4">
             {/* Status Filter */}
-            <div className="space-y-2 min-w-[180px]">
+            <div className="space-y-2 w-full sm:min-w-[180px] sm:w-auto">
               <Label htmlFor="status-filter">Status</Label>
               <Select
                 value={statusFilter}
@@ -170,7 +170,7 @@ export default function Dashboard() {
             </div>
 
             {/* Date Range Picker */}
-            <div className="space-y-2 min-w-[280px]">
+            <div className="space-y-2 w-full sm:min-w-[280px] sm:w-auto">
               <Label>Date Range</Label>
               <Popover>
                 <PopoverTrigger asChild>
@@ -202,12 +202,13 @@ export default function Dashboard() {
               disabled={
                 statusFilter === "all" && !dateRange?.from && !dateRange?.to
               }
+              className="w-full sm:w-auto"
             >
               Clear Filters
             </Button>
 
             {/* Filter Summary */}
-            <div className="ml-auto text-sm text-gray-600">
+            <div className="w-full sm:w-auto sm:ml-auto text-sm text-gray-600 text-center sm:text-left">
               Showing{" "}
               <span className="font-semibold">
                 {filteredSubscriptions.length}
