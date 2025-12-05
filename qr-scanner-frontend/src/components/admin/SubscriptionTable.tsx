@@ -41,7 +41,12 @@ export default function SubscriptionTable({ subscriptions, onRefresh }: Subscrip
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSubscription, setSelectedSubscription] = useState<Subscription | null>(null);
   
-  // Use the pagination hook
+  // Sort subscriptions by creation date (newest first)
+  const sortedSubscriptions = [...subscriptions].sort((a, b) => {
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+  
+  // Use the pagination hook with sorted subscriptions
   const {
     paginatedItems: paginatedSubscriptions,
     currentPage,
@@ -49,7 +54,7 @@ export default function SubscriptionTable({ subscriptions, onRefresh }: Subscrip
     totalItems,
     handlePageChange,
     handleItemsPerPageChange,
-  } = usePagination(subscriptions, { initialItemsPerPage: 10 });
+  } = usePagination(sortedSubscriptions, { initialItemsPerPage: 10 });
 
   const handleViewDetails = (subscription: Subscription) => {
     setSelectedSubscription(subscription);
@@ -121,7 +126,7 @@ export default function SubscriptionTable({ subscriptions, onRefresh }: Subscrip
       </div>
 
       {/* Desktop Table View */}
-      <div className="hidden md:block rounded-md border">
+      <div className="hidden lg:block rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -129,6 +134,7 @@ export default function SubscriptionTable({ subscriptions, onRefresh }: Subscrip
               <TableHead>Plan</TableHead>
               <TableHead>Access Code</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Created At</TableHead>
               <TableHead>Start Time</TableHead>
               <TableHead>End Time</TableHead>
               <TableHead>Time Slot</TableHead>
@@ -138,7 +144,7 @@ export default function SubscriptionTable({ subscriptions, onRefresh }: Subscrip
           <TableBody>
             {paginatedSubscriptions.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                <TableCell colSpan={9} className="text-center py-8 text-gray-500">
                   {subscriptions.length === 0 ? 'No subscriptions found' : 'No subscriptions on this page'}
                 </TableCell>
               </TableRow>
@@ -161,6 +167,9 @@ export default function SubscriptionTable({ subscriptions, onRefresh }: Subscrip
                     <code className="font-mono font-bold">{subscription.accessCode}</code>
                   </TableCell>
                   <TableCell>{getStatusBadge(subscription.status, new Date() > new Date(subscription.endDate))}</TableCell>
+                  <TableCell>
+                    <div className="text-sm">{formatDateTime(subscription.createdAt)}</div>
+                  </TableCell>
                   <TableCell>{formatDateTime(subscription.startDate)}</TableCell>
                   <TableCell>{formatDateTime(subscription.endDate)}</TableCell>
                   <TableCell>
@@ -188,8 +197,8 @@ export default function SubscriptionTable({ subscriptions, onRefresh }: Subscrip
         </Table>
       </div>
 
-      {/* Mobile List View */}
-      <div className="block md:hidden space-y-4">
+      {/* Mobile & Tablet List View */}
+      <div className="block lg:hidden space-y-4">
         {paginatedSubscriptions.length === 0 ? (
           <div className="text-center py-8 text-gray-500 border rounded-md">
             {subscriptions.length === 0 ? 'No subscriptions found' : 'No subscriptions on this page'}
@@ -214,6 +223,11 @@ export default function SubscriptionTable({ subscriptions, onRefresh }: Subscrip
                 <div className="flex justify-between">
                   <span className="text-gray-600">Access Code:</span>
                   <code className="font-mono font-bold text-xs">{subscription.accessCode}</code>
+                </div>
+                
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Created:</span>
+                  <span className="text-xs">{formatDateTime(subscription.createdAt)}</span>
                 </div>
                 
                 <div className="flex justify-between">

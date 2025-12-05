@@ -13,6 +13,7 @@ interface User {
   id: string;
   name: string;
   email: string;
+  role: string;
 }
 
 interface Plan {
@@ -51,6 +52,10 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess }: Subscr
   const [users, setUsers] = useState<User[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [validationError, setValidationError] = useState<string>('');
+  const [userSearch, setUserSearch] = useState('');
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [planSearch, setPlanSearch] = useState('');
+  const [showPlanDropdown, setShowPlanDropdown] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -74,7 +79,9 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess }: Subscr
       });
       const data = await response.json();
       if (data.success) {
-        setUsers(data.data);
+        // Filter to only show users with role "USER"
+        const regularUsers = data.data.filter((user: User) => user.role === 'USER');
+        setUsers(regularUsers);
       }
     } catch (error) {
       console.error('Error fetching users:', error);
@@ -227,10 +234,49 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess }: Subscr
   const selectedPlan = plans.find(p => p.id === formData.planId);
   const timeSlotInfo = getTimeSlotInfo(selectedPlan);
 
+  // Filter users based on search input
+  const filteredUsers = users.filter(user => 
+    user.name.toLowerCase().includes(userSearch.toLowerCase()) ||
+    user.email.toLowerCase().includes(userSearch.toLowerCase())
+  );
+
+  // Get selected user for display
+  const selectedUser = users.find(u => u.id === formData.userId);
+
+  // Filter plans based on search input
+  const filteredPlans = plans.filter(plan => 
+    plan.name.toLowerCase().includes(planSearch.toLowerCase()) ||
+    plan.price.toString().includes(planSearch)
+  );
+
   // Clear validation error when plan changes
   useEffect(() => {
     setValidationError('');
   }, [formData.planId, formData.startDate]);
+
+  // Handle user selection
+  const handleUserSelect = (user: User) => {
+    setFormData({ ...formData, userId: user.id });
+    setUserSearch(user.name);
+    setShowUserDropdown(false);
+  };
+
+  // Handle plan selection
+  const handlePlanSelect = (plan: Plan) => {
+    setFormData({ ...formData, planId: plan.id });
+    setPlanSearch(plan.name);
+    setShowPlanDropdown(false);
+  };
+
+  // Reset search fields when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setUserSearch('');
+      setShowUserDropdown(false);
+      setPlanSearch('');
+      setShowPlanDropdown(false);
+    }
+  }, [isOpen]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -254,39 +300,85 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess }: Subscr
             </div>
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
+            <div className="space-y-2 relative">
               <Label htmlFor="userId">Select User *</Label>
-              <select
+              <Input
                 id="userId"
-                className="w-full px-3 py-2 border rounded-md"
-                value={formData.userId}
-                onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
+                type="text"
+                placeholder="Search users by name or email..."
+                value={userSearch || (selectedUser ? selectedUser.name : '')}
+                onChange={(e) => {
+                  setUserSearch(e.target.value);
+                  setShowUserDropdown(true);
+                  if (!e.target.value) {
+                    setFormData({ ...formData, userId: '' });
+                  }
+                }}
+                onFocus={() => setShowUserDropdown(true)}
                 required
-              >
-                <option value="">Select a user...</option>
-                {users.map((user) => (
-                  <option key={user.id} value={user.id}>
-                    {user.name} ({user.email})
-                  </option>
-                ))}
-              </select>
+                autoComplete="off"
+              />
+              {showUserDropdown && (
+                <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
+                  {filteredUsers.length === 0 ? (
+                    <div className="px-3 py-2 text-sm text-gray-500">
+                      No users found
+                    </div>
+                  ) : (
+                    filteredUsers.map((user) => (
+                      <button
+                        key={user.id}
+                        type="button"
+                        className="w-full text-left px-3 py-2 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+                        onClick={() => handleUserSelect(user)}
+                      >
+                        <div className="font-medium">{user.name}</div>
+                        <div className="text-sm text-gray-500">{user.email}</div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 relative">
               <Label htmlFor="planId">Select Plan *</Label>
-              <select
+              <Input
                 id="planId"
-                className="w-full px-3 py-2 border rounded-md"
-                value={formData.planId}
-                onChange={(e) => setFormData({ ...formData, planId: e.target.value })}
+                type="text"
+                placeholder="Search plans by name or price..."
+                value={planSearch || (selectedPlan ? selectedPlan.name : '')}
+                onChange={(e) => {
+                  setPlanSearch(e.target.value);
+                  setShowPlanDropdown(true);
+                  if (!e.target.value) {
+                    setFormData({ ...formData, planId: '' });
+                  }
+                }}
+                onFocus={() => setShowPlanDropdown(true)}
                 required
-              >
-                <option value="">Select a plan...</option>
-                {plans.map((plan) => (
-                  <option key={plan.id} value={plan.id}>
-                    {plan.name} - ₦{plan.price}
-                  </option>
-                ))}
-              </select>
+                autoComplete="off"
+              />
+              {showPlanDropdown && (
+                <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
+                  {filteredPlans.length === 0 ? (
+                    <div className="px-3 py-2 text-sm text-gray-500">
+                      No plans found
+                    </div>
+                  ) : (
+                    filteredPlans.map((plan) => (
+                      <button
+                        key={plan.id}
+                        type="button"
+                        className="w-full text-left px-3 py-2 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
+                        onClick={() => handlePlanSelect(plan)}
+                      >
+                        <div className="font-medium">{plan.name}</div>
+                        <div className="text-sm text-gray-500">₦{plan.price.toLocaleString()}</div>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="startDate">Start Date & Time *</Label>

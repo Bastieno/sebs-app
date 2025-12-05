@@ -124,7 +124,7 @@ export default function UserTable({ users, onRefresh }: UserTableProps) {
       </div>
 
       {/* Desktop Table View */}
-      <div className="hidden md:block rounded-md border">
+      <div className="hidden lg:block rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -194,8 +194,8 @@ export default function UserTable({ users, onRefresh }: UserTableProps) {
         </Table>
       </div>
 
-      {/* Mobile List View */}
-      <div className="block md:hidden space-y-4">
+      {/* Mobile & Tablet List View */}
+      <div className="block lg:hidden space-y-4">
         {paginatedUsers.length === 0 ? (
           <div className="text-center py-8 text-gray-500 border rounded-md">
             {users.length === 0 ? 'No users found' : 'No users on this page'}
