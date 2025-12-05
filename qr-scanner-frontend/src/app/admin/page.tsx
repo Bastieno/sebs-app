@@ -206,7 +206,9 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-6 max-w-full">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+          Admin Dashboard
+        </h1>
         <p className="text-sm sm:text-base text-gray-600 mt-2">
           Manage users, subscriptions, and plans
         </p>
@@ -214,24 +216,42 @@ export default function AdminDashboard() {
 
       {/* Mobile Select Navigation */}
       <div className="md:hidden">
-        <Select value={activeTab} onValueChange={(value) => setActiveTab(value as TabType)}>
+        <Select
+          value={activeTab}
+          onValueChange={(value) => setActiveTab(value as TabType)}
+        >
           <SelectTrigger className="w-full">
             <SelectValue>
-              {activeTab === 'users' && <><Users className="inline h-4 w-4 mr-2" />Users</>}
-              {activeTab === 'subscriptions' && <><FileText className="inline h-4 w-4 mr-2" />Subscriptions</>}
-              {activeTab === 'lookup' && <><Search className="inline h-4 w-4 mr-2" />Lookup</>}
-              {activeTab === 'notifications' && (
-                <span className="flex items-center">
-                  <Bell className="inline h-4 w-4 mr-2" />
-                  Notifications
-                  {unreadCount > 0 && (
-                    <Badge variant="destructive" className="ml-2 h-5 px-1.5 text-xs">
-                      {unreadCount}
-                    </Badge>
-                  )}
+              {activeTab === "users" && (
+                <span className="flex items-center truncate">
+                  <Users className="inline h-4 w-4 mr-2 flex-shrink-0" />
+                  <span className="truncate">Users</span>
                 </span>
               )}
-              {activeTab === 'plans' && <><Settings className="inline h-4 w-4 mr-2" />Plans</>}
+              {activeTab === "subscriptions" && (
+                <span className="flex items-center truncate">
+                  <FileText className="inline h-4 w-4 mr-2 flex-shrink-0" />
+                  <span className="truncate">Subscriptions</span>
+                </span>
+              )}
+              {activeTab === "lookup" && (
+                <span className="flex items-center truncate">
+                  <Search className="inline h-4 w-4 mr-2 flex-shrink-0" />
+                  <span className="truncate">Lookup</span>
+                </span>
+              )}
+              {activeTab === "notifications" && (
+                <span className="flex items-center truncate">
+                  <Bell className="inline h-4 w-4 mr-2 flex-shrink-0" />
+                  <span className="truncate">Notifications</span>
+                </span>
+              )}
+              {activeTab === "plans" && (
+                <span className="flex items-center truncate">
+                  <Settings className="inline h-4 w-4 mr-2 flex-shrink-0" />
+                  <span className="truncate">Plans</span>
+                </span>
+              )}
             </SelectValue>
           </SelectTrigger>
           <SelectContent>
@@ -247,18 +267,14 @@ export default function AdminDashboard() {
               <Search className="inline h-4 w-4 mr-2" />
               Lookup
             </SelectItem>
-            <SelectItem value="notifications">
-              <div className="flex items-center justify-between w-full">
-                <span className="flex items-center">
-                  <Bell className="inline h-4 w-4 mr-2" />
-                  Notifications
-                </span>
-                {unreadCount > 0 && (
-                  <Badge variant="destructive" className="ml-2 h-5 px-1.5 text-xs">
-                    {unreadCount}
-                  </Badge>
-                )}
-              </div>
+            <SelectItem value="notifications" className="flex items-center">
+              <Bell className="inline h-4 w-4 mr-2" />
+              Notifications
+              {unreadCount > 0 && (
+                <Badge variant="destructive" className="ml-2 h-5 px-1.5 text-xs">
+                  {unreadCount}
+                </Badge>
+              )}
             </SelectItem>
             <SelectItem value="plans">
               <Settings className="inline h-4 w-4 mr-2" />
@@ -271,44 +287,44 @@ export default function AdminDashboard() {
       {/* Desktop Tab Navigation */}
       <div className="hidden md:flex pt-1 gap-2 border-b">
         <button
-          onClick={() => setActiveTab('users')}
+          onClick={() => setActiveTab("users")}
           className={`px-4 py-2 font-medium transition-colors whitespace-nowrap ${
-            activeTab === 'users'
-              ? 'border-b-2 border-blue-600 text-blue-600'
-              : 'text-gray-600 hover:text-gray-900'
+            activeTab === "users"
+              ? "border-b-2 border-blue-600 text-blue-600"
+              : "text-gray-600 hover:text-gray-900"
           }`}
         >
           <Users className="inline h-4 w-4 mr-2" />
           Users
         </button>
         <button
-          onClick={() => setActiveTab('subscriptions')}
+          onClick={() => setActiveTab("subscriptions")}
           className={`px-4 py-2 font-medium transition-colors whitespace-nowrap ${
-            activeTab === 'subscriptions'
-              ? 'border-b-2 border-blue-600 text-blue-600'
-              : 'text-gray-600 hover:text-gray-900'
+            activeTab === "subscriptions"
+              ? "border-b-2 border-blue-600 text-blue-600"
+              : "text-gray-600 hover:text-gray-900"
           }`}
         >
           <FileText className="inline h-4 w-4 mr-2" />
           Subscriptions
         </button>
         <button
-          onClick={() => setActiveTab('lookup')}
+          onClick={() => setActiveTab("lookup")}
           className={`px-4 py-2 font-medium transition-colors whitespace-nowrap ${
-            activeTab === 'lookup'
-              ? 'border-b-2 border-blue-600 text-blue-600'
-              : 'text-gray-600 hover:text-gray-900'
+            activeTab === "lookup"
+              ? "border-b-2 border-blue-600 text-blue-600"
+              : "text-gray-600 hover:text-gray-900"
           }`}
         >
           <Search className="inline h-4 w-4 mr-2" />
           Lookup
         </button>
         <button
-          onClick={() => setActiveTab('notifications')}
+          onClick={() => setActiveTab("notifications")}
           className={`px-4 py-2 font-medium transition-colors relative whitespace-nowrap ${
-            activeTab === 'notifications'
-              ? 'border-b-2 border-blue-600 text-blue-600'
-              : 'text-gray-600 hover:text-gray-900'
+            activeTab === "notifications"
+              ? "border-b-2 border-blue-600 text-blue-600"
+              : "text-gray-600 hover:text-gray-900"
           }`}
         >
           <Bell className="inline h-4 w-4 mr-2" />
@@ -320,11 +336,11 @@ export default function AdminDashboard() {
           )}
         </button>
         <button
-          onClick={() => setActiveTab('plans')}
+          onClick={() => setActiveTab("plans")}
           className={`px-4 py-2 font-medium transition-colors whitespace-nowrap ${
-            activeTab === 'plans'
-              ? 'border-b-2 border-blue-600 text-blue-600'
-              : 'text-gray-600 hover:text-gray-900'
+            activeTab === "plans"
+              ? "border-b-2 border-blue-600 text-blue-600"
+              : "text-gray-600 hover:text-gray-900"
           }`}
         >
           <Settings className="inline h-4 w-4 mr-2" />
@@ -333,19 +349,20 @@ export default function AdminDashboard() {
       </div>
 
       {/* Tab Content */}
-      {activeTab === 'users' && (
+      {activeTab === "users" && (
         <UserTable users={users} onRefresh={fetchUsers} />
       )}
 
-      {activeTab === 'subscriptions' && (
-        <SubscriptionTable subscriptions={subscriptions} onRefresh={fetchSubscriptions} />
+      {activeTab === "subscriptions" && (
+        <SubscriptionTable
+          subscriptions={subscriptions}
+          onRefresh={fetchSubscriptions}
+        />
       )}
 
-      {activeTab === 'lookup' && (
-        <LookupPanel />
-      )}
+      {activeTab === "lookup" && <LookupPanel />}
 
-      {activeTab === 'notifications' && (
+      {activeTab === "notifications" && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
@@ -369,29 +386,35 @@ export default function AdminDashboard() {
                     key={notification.id}
                     className={`p-4 rounded-lg border transition-colors ${
                       notification.isRead
-                        ? 'bg-gray-50 border-gray-200'
-                        : 'bg-blue-50 border-blue-200'
+                        ? "bg-gray-50 border-gray-200"
+                        : "bg-blue-50 border-blue-200"
                     }`}
                   >
                     <div className="flex items-start gap-3">
-                      <div className="mt-0.5">
+                      <div className="mt-0.5 flex-shrink-0">
                         {getNotificationIcon(notification.type)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2 mb-1">
-                          <Badge variant={getNotificationBadgeVariant(notification.type)}>
-                            {notification.type.replace('_', ' ')}
+                        <div className="flex items-start flex-col sm:flex-row sm:justify-between gap-1 sm:gap-2 mb-1">
+                          <Badge
+                            variant={getNotificationBadgeVariant(
+                              notification.type
+                            )}
+                            className="w-fit"
+                          >
+                            {notification.type.replace("_", " ")}
                           </Badge>
-                          <span className="text-xs text-gray-500 whitespace-nowrap">
+                          <span className="text-xs text-gray-500 break-all sm:whitespace-nowrap">
                             {new Date(notification.createdAt).toLocaleString()}
                           </span>
                         </div>
-                        <p className="text-sm text-gray-900 mb-2">
+                        <p className="text-sm text-gray-900 mb-2 break-words">
                           {notification.message}
                         </p>
                         {notification.user && (
-                          <p className="text-xs text-gray-600">
-                            User: {notification.user.name} ({notification.user.email})
+                          <p className="text-xs text-gray-600 break-words">
+                            User: {notification.user.name} (
+                            {notification.user.email})
                           </p>
                         )}
                         {!notification.isRead && (
@@ -426,7 +449,7 @@ export default function AdminDashboard() {
         </Card>
       )}
 
-      {activeTab === 'plans' && (
+      {activeTab === "plans" && (
         <ManagePlans plans={plans} onRefresh={fetchPlans} />
       )}
     </div>
