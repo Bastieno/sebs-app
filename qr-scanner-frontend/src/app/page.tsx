@@ -54,6 +54,21 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    
+    // Check on mount
+    checkMobile();
+    
+    // Add resize listener
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     fetchSubscriptions();
@@ -182,13 +197,13 @@ export default function Dashboard() {
                     {formatDateRange()}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 max-w-none" align="start">
+                <PopoverContent className="w-auto p-0 max-w-none max-h-[85vh] overflow-y-auto" align="start">
                   <Calendar
                     mode="range"
                     defaultMonth={dateRange?.from}
                     selected={dateRange}
                     onSelect={setDateRange}
-                    numberOfMonths={2}
+                    numberOfMonths={isMobile ? 1 : 2}
                     disabled={{ after: new Date() }}
                   />
                 </PopoverContent>
