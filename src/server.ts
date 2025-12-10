@@ -15,7 +15,7 @@ import { initializeScheduledTasks } from './services/scheduler';
 dotenv.config();
 
 const app: Application = express();
-const PORT: number = parseInt(process.env.PORT || '3000', 10);
+const PORT: number = parseInt(process.env.PORT || '3002', 10);
 
 // Security middleware
 app.use(helmet());
@@ -23,7 +23,7 @@ app.use(helmet());
 // CORS configuration
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://yourdomain.com'] 
+    ? process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : '*'
     : ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002'],
   credentials: true
 }));
@@ -119,21 +119,46 @@ app.use((err: CustomError, req: Request, res: Response, next: NextFunction) => {
 
 // Start server
 if (require.main === module) {
-  app.listen(PORT, async () => {
-    console.log(`🚀 Seb's Hub Backend running on port ${PORT}`);
-    console.log(`📊 Environment: ${process.env.NODE_ENV}`);
-    console.log(`🔗 Health check: http://localhost:${PORT}/health`);
-    console.log(`📚 API docs: http://localhost:${PORT}/api-docs`);
-    
+  // Connect to database BEFORE starting server
+  const startServer = async () => {
     // Initialize database connection
     if (process.env.DATABASE_URL) {
-      await connectDatabase();
-      
-      // Initialize scheduled tasks after database is connected
-      initializeScheduledTasks();
+      try {
+        await connectDatabase();
+        
+        // Initialize scheduled tasks after database is connected
+        // Wrap in setTimeout to not block server start
+        setTimeout(() => {
+          console.log('� Starting scheduled tasks...');
+          try {
+            initializeScheduledTasks();
+          } catch (error) {
+            console.error('❌ Failed to initialize scheduled tasks:', error);
+          }
+        }, 5000); // Wait 5 seconds after server starts
+      } catch (error) {
+        console.error('❌ Failed to connect to database:', error);
+        if (process.env.NODE_ENV === 'production') {
+          console.error('⚠️  Exiting due to database connection failure in production');
+          process.exit(1);
+        }
+      }
     } else {
       console.log('⚠️  DATABASE_URL not configured - skipping database connection');
     }
+    
+    // Start listening
+    app.listen(PORT, () => {
+      console.log(`🚀 Seb's Hub Backend running on port ${PORT}`);
+      console.log(`📊 Environment: ${process.env.NODE_ENV}`);
+      console.log(`🔗 Health check: http://0.0.0.0:${PORT}/health`);
+      console.log(`📚 API docs: http://0.0.0.0:${PORT}/api-docs`);
+    });
+  };
+  
+  startServer().catch((error) => {
+    console.error('❌ Server startup failed:', error);
+    process.exit(1);
   });
 }
 
