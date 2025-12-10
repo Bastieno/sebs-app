@@ -1,87 +1,75 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
-// User model
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  name         String
-  phone        String
-  role         Role     @default(USER)
-  passwordHash String   @map("password_hash")
-  isActive     Boolean  @default(true) @map("is_active")
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-
-  // Relations
-  subscriptions     Subscription[]
-  accessLogs        AccessLog[]
-  approvedSubscriptions Subscription[] @relation("ApprovedBy")
-  processedReceipts PaymentReceipt[] @relation("ProcessedBy")
-  notifications     Notification[]
+  id                    String           @id @default(uuid())
+  email                 String           @unique
+  name                  String
+  phone                 String
+  role                  Role             @default(USER)
+  passwordHash          String           @map("password_hash")
+  isActive              Boolean          @default(true) @map("is_active")
+  createdAt             DateTime         @default(now()) @map("created_at")
+  updatedAt             DateTime         @updatedAt @map("updated_at")
+  accessLogs            AccessLog[]
+  notifications         Notification[]
+  processedReceipts     PaymentReceipt[] @relation("ProcessedBy")
+  approvedSubscriptions Subscription[]   @relation("ApprovedBy")
+  subscriptions         Subscription[]
 
   @@map("users")
 }
 
-// Plan model
 model Plan {
-  id           String       @id @default(uuid())
-  name         String
-  price        Decimal      @db.Decimal(10, 2)
-  timeUnit     TimeUnit     @map("time_unit")
-  duration     Int          // Number of time units (e.g., 4 hours, 1 week, 1 month)
-  maxCapacity  Int?         @map("max_capacity")
-  currentCapacity Int       @default(0) @map("current_capacity")
-  isCustom     Boolean      @default(false) @map("is_custom") // Distinguish custom plans from system plans
-  planType     PlanType?    @map("plan_type") // Type of plan: DAILY, WEEKLY, MONTHLY, TEAM, CUSTOM
-  defaultTimeSlot TimeSlot? @map("default_time_slot") // Default time slot for system plans
-  notes        String?      @db.Text // Optional notes for custom plans
-  isActive     Boolean      @default(true) @map("is_active")
-  createdAt    DateTime     @default(now()) @map("created_at")
-  updatedAt    DateTime     @updatedAt @map("updated_at")
-
-  // Relations
-  subscriptions Subscription[]
+  id              String         @id @default(uuid())
+  name            String
+  price           Decimal        @db.Decimal(10, 2)
+  maxCapacity     Int?           @map("max_capacity")
+  isActive        Boolean        @default(true) @map("is_active")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  currentCapacity Int            @default(0) @map("current_capacity")
+  isCustom        Boolean        @default(false) @map("is_custom")
+  notes           String?
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  duration        Int
+  timeUnit        TimeUnit       @map("time_unit")
+  defaultTimeSlot TimeSlot?      @map("default_time_slot")
+  planType        PlanType?      @map("plan_type")
+  subscriptions   Subscription[]
 
   @@map("plans")
 }
 
-// Subscription model
 model Subscription {
-  id           String             @id @default(uuid())
-  userId       String             @map("user_id")
-  planId       String             @map("plan_id")
-  timeSlot     TimeSlot?          @map("time_slot") // Time-of-day access restriction (MORNING, AFTERNOON, NIGHT, ALL)
-  status       SubscriptionStatus @default(PENDING)
-  startDate    DateTime           @map("start_date") @db.Timestamp
-  endDate      DateTime           @map("end_date") @db.Timestamp
-  accessCode   String             @unique @map("access_code")
-  adminNotes   String?            @map("admin_notes") @db.Text
-  approvedBy   String?            @map("approved_by")
-  approvedAt   DateTime?          @map("approved_at")
-  createdAt    DateTime           @default(now()) @map("created_at")
-  updatedAt    DateTime           @updatedAt @map("updated_at")
-
-  // Relations
-  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  plan           Plan             @relation(fields: [planId], references: [id])
-  approver       User?            @relation("ApprovedBy", fields: [approvedBy], references: [id])
-  accessLogs     AccessLog[]
+  id              String             @id @default(uuid())
+  userId          String             @map("user_id")
+  planId          String             @map("plan_id")
+  timeSlot        TimeSlot?          @map("time_slot")
+  status          SubscriptionStatus @default(PENDING)
+  startDate       DateTime           @map("start_date") @db.Timestamp(6)
+  endDate         DateTime           @map("end_date") @db.Timestamp(6)
+  accessCode      String             @unique @map("access_code")
+  adminNotes      String?            @map("admin_notes")
+  approvedBy      String?            @map("approved_by")
+  approvedAt      DateTime?          @map("approved_at")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+  accessLogs      AccessLog[]
   paymentReceipts PaymentReceipt[]
+  approver        User?              @relation("ApprovedBy", fields: [approvedBy], references: [id])
+  plan            Plan               @relation(fields: [planId], references: [id])
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("subscriptions")
 }
 
-// Access Log model
 model AccessLog {
   id               String           @id @default(uuid())
   userId           String           @map("user_id")
@@ -91,15 +79,12 @@ model AccessLog {
   scannerLocation  String           @default("main_entrance") @map("scanner_location")
   validationResult ValidationResult @map("validation_result")
   createdAt        DateTime         @default(now()) @map("created_at")
-
-  // Relations
-  user         User         @relation(fields: [userId], references: [id])
-  subscription Subscription @relation(fields: [subscriptionId], references: [id])
+  subscription     Subscription     @relation(fields: [subscriptionId], references: [id])
+  user             User             @relation(fields: [userId], references: [id])
 
   @@map("access_logs")
 }
 
-// Payment Receipt model
 model PaymentReceipt {
   id             String        @id @default(uuid())
   subscriptionId String        @map("subscription_id")
@@ -109,16 +94,25 @@ model PaymentReceipt {
   uploadedAt     DateTime      @default(now()) @map("uploaded_at")
   processedAt    DateTime?     @map("processed_at")
   processedBy    String?       @map("processed_by")
-  adminNotes     String?       @map("admin_notes") @db.Text
-
-  // Relations
-  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
-  processor    User?        @relation("ProcessedBy", fields: [processedBy], references: [id])
+  adminNotes     String?       @map("admin_notes")
+  processor      User?         @relation("ProcessedBy", fields: [processedBy], references: [id])
+  subscription   Subscription  @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
   @@map("payment_receipts")
 }
 
-// Enums
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String           @map("user_id")
+  message   String
+  isRead    Boolean          @default(false) @map("is_read")
+  createdAt DateTime         @default(now()) @map("created_at")
+  type      NotificationType @default(GENERAL)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
 enum Role {
   USER
   ADMIN
@@ -126,12 +120,12 @@ enum Role {
 }
 
 enum TimeUnit {
-  MINUTES
   HOURS
   DAYS
   WEEK
   MONTH
   YEAR
+  MINUTES
 }
 
 enum TimeSlot {
@@ -144,9 +138,9 @@ enum TimeSlot {
 enum SubscriptionStatus {
   PENDING
   ACTIVE
-  IN_GRACE_PERIOD
   EXPIRED
   SUSPENDED
+  IN_GRACE_PERIOD
 }
 
 enum AccessAction {
@@ -166,19 +160,6 @@ enum PaymentStatus {
   PENDING
   APPROVED
   REJECTED
-}
-
-model Notification {
-  id        String           @id @default(uuid())
-  userId    String           @map("user_id")
-  type      NotificationType @default(GENERAL)
-  message   String
-  isRead    Boolean          @default(false) @map("is_read")
-  createdAt DateTime         @default(now()) @map("created_at")
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@map("notifications")
 }
 
 enum NotificationType {

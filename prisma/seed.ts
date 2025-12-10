@@ -1,11 +1,50 @@
 import { PrismaClient } from '@prisma/client';
+import { hashPassword } from '../src/utils/password';
 
 const prisma = new PrismaClient();
 
 async function main() {
   console.log('🌱 Starting database seeding...');
 
+  // Create admin user
+  console.log('\n👤 Creating admin user...');
+  
+  const adminEmail = 'admin@sebshub.com';
+  const adminPassword = 'Admin123!';
+  
+  // Check if admin already exists
+  const existingAdmin = await prisma.user.findUnique({
+    where: { email: adminEmail }
+  });
+  
+  if (existingAdmin) {
+    console.log('ℹ️  Admin user already exists');
+    console.log(`   Email: ${existingAdmin.email}`);
+    console.log(`   Role: ${existingAdmin.role}`);
+  } else {
+    const hashedPassword = await hashPassword(adminPassword);
+    
+    const admin = await prisma.user.create({
+      data: {
+        name: 'Admin User',
+        email: adminEmail,
+        phone: '+2348012345678',
+        passwordHash: hashedPassword,
+        role: 'ADMIN',
+        isActive: true,
+      },
+    });
+    
+    console.log('✅ Admin user created successfully!');
+    console.log('\n📝 Admin Credentials:');
+    console.log(`   Email: ${admin.email}`);
+    console.log(`   Password: ${adminPassword}`);
+    console.log(`   Role: ${admin.role}`);
+    console.log('\n⚠️  IMPORTANT: Change this password after first login!');
+  }
+
   // Create access plans based on the requirements
+  console.log('\n📋 Creating/Updating access plans...');
   const plans = [
     // Daily Plans (4-hour access for morning, 5-hour for afternoon, 12-hour for night)
     {
@@ -86,8 +125,6 @@ async function main() {
     },
   ];
 
-  console.log('📋 Creating/Updating access plans...');
-  
   // Update or create plans
   for (const plan of plans) {
     const existingPlan = await prisma.plan.findFirst({
