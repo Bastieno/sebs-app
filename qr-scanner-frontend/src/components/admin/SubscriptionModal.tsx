@@ -196,13 +196,25 @@ export default function SubscriptionModal({ isOpen, onClose, onSuccess }: Subscr
 
     try {
       const adminToken = localStorage.getItem('adminToken');
+      
+      // Convert the local datetime to ISO string with timezone
+      // The datetime-local input gives us a string like "2025-12-10T16:05"
+      // We need to convert this to ISO format with timezone: "2025-12-10T16:05:00.000Z"
+      const localDate = new Date(formData.startDate);
+      const isoStartDate = localDate.toISOString();
+      
+      const requestData = {
+        ...formData,
+        startDate: isoStartDate
+      };
+      
       const response = await fetch(`${API_URL}/api/admin/create-subscription`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${adminToken}`
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(requestData)
       });
 
       const data = await response.json();

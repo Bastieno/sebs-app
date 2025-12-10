@@ -143,7 +143,14 @@ export const createAndActivateSubscription = async (req: Request, res: Response)
       NIGHT: { start: 18, end: 6 }        // 6pm - 6am (crosses midnight)
     };
 
+    // Parse the startDate from the frontend's datetime-local input
+    // datetime-local sends format like "2025-12-10T16:05" in user's LOCAL time
+    // We need to treat this as a local time and convert to UTC for storage
     const parsedStartDate = new Date(startDate);
+    
+    // Ensure we're working with the time as intended by the user
+    // If startDate doesn't include timezone info, it's treated as local time on the server
+    // We need to get the hour in the timezone where the subscription is being created
     const startHour = parsedStartDate.getHours();
 
     // Validate DAILY plans can only be created during their time windows
@@ -217,6 +224,11 @@ export const createAndActivateSubscription = async (req: Request, res: Response)
     };
 
     const endDate = calculateEndDate(parsedStartDate, plan.timeUnit, plan.duration);
+    
+    // Ensure dates are stored in ISO format with UTC timezone
+    // This prevents timezone ambiguity when retrieving data
+    const isoStartDate = parsedStartDate.toISOString();
+    const isoEndDate = endDate.toISOString();
 
     // Generate unique access code
     let accessCode = generateAccessCode();
@@ -233,8 +245,8 @@ export const createAndActivateSubscription = async (req: Request, res: Response)
           userId,
           planId,
           timeSlot: assignedTimeSlot,
-          startDate: parsedStartDate,
-          endDate,
+          startDate: new Date(isoStartDate),
+          endDate: new Date(isoEndDate),
           accessCode,
           status: 'ACTIVE',
           approvedAt: new Date(),
