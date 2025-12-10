@@ -34,7 +34,8 @@ const cleanupExpiredAndResetCapacity = async () => {
         plan: {
           select: {
             name: true,
-            durationType: true
+            planType: true,
+            timeUnit: true
           }
         }
       }
@@ -48,21 +49,20 @@ const cleanupExpiredAndResetCapacity = async () => {
     
     for (const subscription of activeSubscriptions) {
       const endDate = new Date(subscription.endDate);
-      const graceEndDate = subscription.graceEndDate ? new Date(subscription.graceEndDate) : null;
       
-      // Check if fully expired
-      const isExpired = now > endDate && (!graceEndDate || now > graceEndDate);
+      // Check if fully expired (no grace period in current schema)
+      const isExpired = now > endDate;
       
-      // Check if in grace period
-      const isInGracePeriod = subscription.plan.durationType === 'MONTHLY' && 
+      // Check if in grace period (7 days after end date for MONTHLY plans)
+      const gracePeriodDays = 7;
+      const gracePeriodEnd = new Date(endDate.getTime() + gracePeriodDays * 24 * 60 * 60 * 1000);
+      const isInGracePeriod = subscription.plan.planType === 'MONTHLY' && 
                               now > endDate && 
-                              graceEndDate && 
-                              now <= graceEndDate;
+                              now <= gracePeriodEnd;
       
-      if (isExpired) {
+      if (isExpired && !isInGracePeriod) {
         console.log(`\n❌ EXPIRED: ${subscription.user.name} - ${subscription.plan.name}`);
         console.log(`   End Date: ${endDate.toISOString()}`);
-        console.log(`   Grace End: ${graceEndDate ? graceEndDate.toISOString() : 'N/A'}`);
         
         await prisma.subscription.update({
           where: { id: subscription.id },
@@ -72,8 +72,10 @@ const cleanupExpiredAndResetCapacity = async () => {
         console.log(`   ✓ Status updated to EXPIRED`);
         expiredCount++;
       } else if (isInGracePeriod && subscription.status === 'ACTIVE') {
+        const gracePeriodDays = 7;
+        const gracePeriodEnd = new Date(endDate.getTime() + gracePeriodDays * 24 * 60 * 60 * 1000);
         console.log(`\n⚠️  GRACE PERIOD: ${subscription.user.name} - ${subscription.plan.name}`);
-        console.log(`   Grace ends: ${graceEndDate?.toISOString()}`);
+        console.log(`   Grace ends: ${gracePeriodEnd.toISOString()}`);
         
         await prisma.subscription.update({
           where: { id: subscription.id },

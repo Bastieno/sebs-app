@@ -75,7 +75,6 @@ async function testPaymentApprovalWorkflow() {
           status: 'PENDING',
           startDate: new Date(),
           endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
-          graceEndDate: new Date(Date.now() + 37 * 24 * 60 * 60 * 1000), // 37 days from now
           accessCode: accessCode
         }
       });

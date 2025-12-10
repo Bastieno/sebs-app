@@ -28,7 +28,8 @@ const fixExpiredSubscriptions = async () => {
         plan: {
           select: {
             name: true,
-            durationType: true
+            planType: true,
+            timeUnit: true
           }
         }
       }
@@ -41,10 +42,14 @@ const fixExpiredSubscriptions = async () => {
     
     for (const subscription of activeSubscriptions) {
       const endDate = new Date(subscription.endDate);
-      const graceEndDate = subscription.graceEndDate ? new Date(subscription.graceEndDate) : null;
+      
+      // Calculate grace period end (7 days after end date for MONTHLY plans)
+      const gracePeriodDays = 7;
+      const gracePeriodEnd = new Date(endDate.getTime() + gracePeriodDays * 24 * 60 * 60 * 1000);
+      const hasGracePeriod = subscription.plan.planType === 'MONTHLY';
       
       // Check if the subscription is expired
-      const isExpired = now > endDate && (!graceEndDate || now > graceEndDate);
+      const isExpired = now > endDate && (!hasGracePeriod || now > gracePeriodEnd);
       
       if (isExpired) {
         console.log(`\nExpired subscription found:`);
@@ -52,7 +57,6 @@ const fixExpiredSubscriptions = async () => {
         console.log(`  - User: ${subscription.user.name} (${subscription.user.email})`);
         console.log(`  - Plan: ${subscription.plan.name}`);
         console.log(`  - End Date: ${endDate.toISOString()}`);
-        console.log(`  - Grace End Date: ${graceEndDate ? graceEndDate.toISOString() : 'N/A'}`);
         console.log(`  - Current Status: ${subscription.status}`);
         
         // Update the subscription status to EXPIRED
@@ -69,15 +73,14 @@ const fixExpiredSubscriptions = async () => {
         // For subscriptions that should be IN_GRACE_PERIOD
         if (subscription.status === 'ACTIVE' && 
             now > endDate && 
-            graceEndDate && 
-            now <= graceEndDate &&
-            subscription.plan.durationType === 'MONTHLY') {
+            hasGracePeriod && 
+            now <= gracePeriodEnd) {
           
           console.log(`\nSubscription in grace period:`);
           console.log(`  - ID: ${subscription.id}`);
           console.log(`  - User: ${subscription.user.name} (${subscription.user.email})`);
           console.log(`  - Plan: ${subscription.plan.name}`);
-          console.log(`  - Grace ends: ${graceEndDate.toISOString()}`);
+          console.log(`  - Grace ends: ${gracePeriodEnd.toISOString()}`);
           
           // Update to IN_GRACE_PERIOD
           await prisma.subscription.update({
